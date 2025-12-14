@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Výdaje Pro">
+    <meta name="theme-color" content="#0f172a">
+    <title>Výdaje Pro - Skupinové finance</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <!-- Header with Group Selector -->
+        <header class="header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1>💎 Výdaje</h1>
+                    <div class="group-selector" id="groupSelector">
+                        <button class="current-group" id="currentGroup">
+                            <span id="currentGroupName">Výchozí skupina</span>
+                            <span class="dropdown-icon">▼</span>
+                        </button>
+                        <div class="group-dropdown hidden" id="groupDropdown">
+                            <div class="group-list" id="groupList"></div>
+                            <button class="add-group-btn" id="addGroupBtn">+ Nová skupina</button>
+                        </div>
+                    </div>
+                </div>
+                <button id="syncBtn" class="sync-btn" title="Synchronizovat">
+                    <span class="sync-icon">⟳</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Connection Status -->
+        <div id="connectionStatus" class="connection-status hidden">
+            <span id="statusText"></span>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="tabs">
+            <button class="tab active" data-tab="add">
+                <span class="tab-icon">➕</span>
+                <span class="tab-label">Přidat</span>
+            </button>
+            <button class="tab" data-tab="expenses">
+                <span class="tab-icon">📋</span>
+                <span class="tab-label">Výdaje</span>
+            </button>
+            <button class="tab" data-tab="balance">
+                <span class="tab-icon">💰</span>
+                <span class="tab-label">Bilance</span>
+            </button>
+            <button class="tab" data-tab="stats">
+                <span class="tab-icon">📊</span>
+                <span class="tab-label">Statistiky</span>
+            </button>
+            <button class="tab" data-tab="settings">
+                <span class="tab-icon">⚙️</span>
+                <span class="tab-label">Nastavení</span>
+            </button>
+        </nav>
+
+        <!-- Tab Content -->
+        <div class="content">
+            
+            <!-- Add Expense/Income Tab -->
+            <div id="addTab" class="tab-content active">
+                <div class="add-type-selector">
+                    <button class="type-btn active" data-type="expense">Výdaj</button>
+                    <button class="type-btn" data-type="income">Příjem</button>
+                </div>
+
+                <!-- Expense Form -->
+                <form id="expenseForm" class="transaction-form">
+                    <div class="form-group">
+                        <label for="description">Popis</label>
+                        <input type="text" id="description" placeholder="Např. Večeře v restauraci" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="amount">Částka</label>
+                            <input type="number" id="amount" placeholder="0" step="0.01" required>
+                        </div>
+                        <div class="form-group" style="width: 120px;">
+                            <label for="currency">Měna</label>
+                            <select id="currency">
+                                <option value="CZK" selected>CZK</option>
+                                <option value="EUR">EUR</option>
+                                <option value="USD">USD</option>
+                                <option value="GBP">GBP</option>
+                                <option value="THB">THB</option>
+                                <option value="PLN">PLN</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="currencyNote" class="currency-note hidden">
+                        <span id="currencyConversion"></span>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="date">Datum</label>
+                            <input type="date" id="date" required>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="time">Čas</label>
+                            <input type="time" id="time" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="paidBy">Kdo platil</label>
+                        <select id="paidBy" required>
+                            <option value="">Vyber osobu</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="category">Kategorie</label>
+                        <select id="category">
+                            <!-- Dynamically populated -->
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            Rozdělit mezi
+                            <span class="split-mode-toggle">
+                                <button type="button" class="mode-btn active" data-mode="equal">Rovnoměrně</button>
+                                <button type="button" class="mode-btn" data-mode="custom">Vlastní částky</button>
+                            </span>
+                        </label>
+                        <div id="splitBetween" class="split-container">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="note">Poznámka (volitelné)</label>
+                        <textarea id="note" placeholder="Dodatečné informace k výdaji..." rows="3"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn-primary">
+                        <span class="btn-icon">💸</span>
+                        Přidat výdaj
+                    </button>
+                </form>
+
+                <!-- Income Form -->
+                <form id="incomeForm" class="transaction-form hidden">
+                    <div class="form-group">
+                        <label for="incomeDescription">Popis příjmu</label>
+                        <input type="text" id="incomeDescription" placeholder="Např. Vrácení peněz, výplata..." required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="incomeAmount">Částka</label>
+                            <input type="number" id="incomeAmount" placeholder="0" step="0.01" required>
+                        </div>
+                        <div class="form-group" style="width: 120px;">
+                            <label for="incomeCurrency">Měna</label>
+                            <select id="incomeCurrency">
+                                <option value="CZK" selected>CZK</option>
+                                <option value="EUR">EUR</option>
+                                <option value="USD">USD</option>
+                                <option value="GBP">GBP</option>
+                                <option value="THB">THB</option>
+                                <option value="PLN">PLN</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="incomeCurrencyNote" class="currency-note hidden">
+                        <span id="incomeCurrencyConversion"></span>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="incomeDate">Datum</label>
+                            <input type="date" id="incomeDate" required>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="incomeTime">Čas</label>
+                            <input type="time" id="incomeTime" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="incomeRecipient">Komu</label>
+                        <select id="incomeRecipient" required>
+                            <option value="">Vyber osobu</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="incomeNote">Poznámka (volitelné)</label>
+                        <textarea id="incomeNote" placeholder="Dodatečné informace k příjmu..." rows="3"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn-primary btn-income">
+                        <span class="btn-icon">💵</span>
+                        Přidat příjem
+                    </button>
+                </form>
+            </div>
+
+            <!-- Expenses List Tab -->
+            <div id="expensesTab" class="tab-content">
+                <div class="filter-bar">
+                    <select id="filterType" class="filter-select">
+                        <option value="all">Vše</option>
+                        <option value="expense">Pouze výdaje</option>
+                        <option value="income">Pouze příjmy</option>
+                    </select>
+                    <select id="filterCategory" class="filter-select">
+                        <option value="all">Všechny kategorie</option>
+                    </select>
+                </div>
+                <div id="expensesList" class="expenses-list">
+                    <p class="empty-state">Zatím žádné transakce</p>
+                </div>
+            </div>
+
+            <!-- Balance Tab -->
+            <div id="balanceTab" class="tab-content">
+                <div class="balance-summary">
+                    <div class="summary-card">
+                        <div class="summary-label">Celkové výdaje</div>
+                        <div class="summary-value" id="totalExpenses">0 Kč</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">Celkové příjmy</div>
+                        <div class="summary-value income-color" id="totalIncomes">0 Kč</div>
+                    </div>
+                </div>
+
+                <div class="section-header">
+                    <h3>💳 Bilance členů</h3>
+                </div>
+                <div id="balanceList" class="balance-list">
+                    <p class="empty-state">Zatím žádné dluhy</p>
+                </div>
+
+                <div class="section-header">
+                    <h3>💸 Vyrovnání dluhů</h3>
+                </div>
+                <div id="settlementList" class="settlement-list">
+                    <p class="empty-state">Všechno je vyrovnané! 🎉</p>
+                </div>
+            </div>
+
+            <!-- Statistics Tab -->
+            <div id="statsTab" class="tab-content">
+                <div class="stats-header">
+                    <h2>📊 Statistiky a přehledy</h2>
+                    <select id="statsTimeRange" class="filter-select">
+                        <option value="all">Celkem</option>
+                        <option value="month">Tento měsíc</option>
+                        <option value="week">Tento týden</option>
+                    </select>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Výdaje podle kategorií</h3>
+                    <canvas id="categoryChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Časový vývoj</h3>
+                    <canvas id="timelineChart"></canvas>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📈</div>
+                        <div class="stat-value" id="avgExpense">0 Kč</div>
+                        <div class="stat-label">Průměrný výdaj</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🏆</div>
+                        <div class="stat-value" id="topCategory">-</div>
+                        <div class="stat-label">Top kategorie</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">👤</div>
+                        <div class="stat-value" id="topSpender">-</div>
+                        <div class="stat-label">Nejvíce utratil</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📅</div>
+                        <div class="stat-value" id="expenseCount">0</div>
+                        <div class="stat-label">Počet výdajů</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settingsTab" class="tab-content">
+                <div class="settings">
+                    
+                    <div class="settings-section">
+                        <h3>🏷️ Kategorie výdajů</h3>
+                        <div id="categoriesList" class="categories-list">
+                            <!-- Dynamically populated -->
+                        </div>
+                        <div class="add-category">
+                            <input type="text" id="newCategoryName" placeholder="Název kategorie">
+                            <input type="text" id="newCategoryIcon" placeholder="Emoji" maxlength="2" style="width: 60px;">
+                            <button id="addCategory" class="btn-secondary">Přidat</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>👥 Účastníci skupiny</h3>
+                        <div id="membersList" class="members-list">
+                            <!-- Dynamically populated -->
+                        </div>
+                        <div class="add-member">
+                            <input type="text" id="newMember" placeholder="Jméno nového účastníka">
+                            <button id="addMember" class="btn-secondary">Přidat</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>☁️ Google Sheets připojení</h3>
+                        <div class="form-group">
+                            <label for="sheetId">ID Google tabulky</label>
+                            <input type="text" id="sheetId" placeholder="Vlož ID tabulky">
+                            <small>Najdeš v URL: docs.google.com/spreadsheets/d/<strong>ID_TABULKY</strong>/edit</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="apiKey">Google API klíč</label>
+                            <input type="password" id="apiKey" placeholder="Vlož API klíč">
+                        </div>
+                        <button id="saveConnection" class="btn-primary">Uložit připojení</button>
+                        <button id="testConnection" class="btn-secondary">Test připojení</button>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>🗑️ Data</h3>
+                        <button id="clearGroupData" class="btn-warning">Smazat data této skupiny</button>
+                        <button id="clearAllData" class="btn-danger">Smazat všechna data</button>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>ℹ️ O aplikaci</h3>
+                        <p><strong>Verze:</strong> 2.0.0 Pro</p>
+                        <p><strong>Funkce:</strong> Skupiny, Multi-měna, Grafy, Vyrovnání dluhů</p>
+                        <p>Offline PWA pro profesionální sledování skupinových financí</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="groupModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Nová skupina</h3>
+            <div class="form-group">
+                <label for="groupName">Název skupiny</label>
+                <input type="text" id="groupName" placeholder="Např. Thajsko 2025, Leden 2025...">
+            </div>
+            <div class="modal-actions">
+                <button id="cancelGroup" class="btn-secondary">Zrušit</button>
+                <button id="saveGroup" class="btn-primary">Vytvořit</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settlementModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Vyrovnat dluh</h3>
+            <p id="settlementText"></p>
+            <div class="modal-actions">
+                <button id="cancelSettlement" class="btn-secondary">Zrušit</button>
+                <button id="confirmSettlement" class="btn-primary">Označit jako vyrovnáno</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
