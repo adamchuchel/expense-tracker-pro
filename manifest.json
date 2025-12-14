@@ -1,7 +1,7 @@
 {
-  "name": "Výdaje Pro - Skupinové finance",
-  "short_name": "Výdaje Pro",
-  "description": "Profesionální aplikace pro sledování skupinových výdajů s multi-měnou, grafy a pokročilými funkcemi",
+  "name": "💎 Výdaje - Zabezpečené",
+  "short_name": "Výdaje",
+  "description": "Zabezpečená aplikace pro skupinové finance s Google přihlášením",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",

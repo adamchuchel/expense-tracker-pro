@@ -6,8 +6,8 @@ let state = {
             id: 'default',
             name: 'Výchozí skupina',
             members: ['Adam', 'Osoba 2', 'Osoba 3'],
-            transactions: [], // expenses + incomes
-            settlements: [] // settled debts
+            transactions: [],
+            settlements: []
         }
     },
     categories: [
@@ -18,10 +18,16 @@ let state = {
         { name: 'Nákupy', icon: '🛒' },
         { name: 'Ostatní', icon: '📦' }
     ],
-    exchangeRates: {},
+    exchangeRates: {
+        CZK: 1,
+        EUR: 25.0,
+        USD: 23.0,
+        GBP: 29.0,
+        THB: 0.65,
+        PLN: 5.8
+    },
     lastRateUpdate: null,
-    sheetId: '',
-    apiKey: '',
+    scriptUrl: '', // Google Apps Script URL
     isOnline: navigator.onLine
 };
 
@@ -30,52 +36,7 @@ let charts = {
     timeline: null
 };
 
-// Initialize App
-document.addEventListener('DOMContentLoaded', () => {
-    loadState();
-    initializeUI();
-    setupEventListeners();
-    updateAllViews();
-    fetchExchangeRates();
-    registerServiceWorker();
-    
-    // Set current date/time
-    const now = new Date();
-    document.getElementById('date').valueAsDate = now;
-    document.getElementById('time').value = now.toTimeString().slice(0,5);
-    document.getElementById('incomeDate').valueAsDate = now;
-    document.getElementById('incomeTime').value = now.toTimeString().slice(0,5);
-});
-
-// Service Worker Registration
-function registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js')
-            .then(reg => console.log('Service Worker registered'))
-            .catch(err => console.log('Service Worker registration failed:', err));
-    }
-}
-
-// Load State from LocalStorage
-function loadState() {
-    const saved = localStorage.getItem('expenseTrackerProState');
-    if (saved) {
-        const savedState = JSON.parse(saved);
-        state = { ...state, ...savedState };
-    }
-}
-
-// Save State to LocalStorage
-function saveState() {
-    localStorage.setItem('expenseTrackerProState', JSON.stringify(state));
-}
-
-// Get Current Group
-function getCurrentGroup() {
-    return state.groups[state.currentGroup];
-}
-
-// Initialize UI
+// Initialize App (called after auth)
 function initializeUI() {
     updateGroupSelector();
     updateMemberSelects();
@@ -83,20 +44,59 @@ function initializeUI() {
     updateCategoriesList();
     updateMembersList();
     
-    // Load connection settings
-    document.getElementById('sheetId').value = state.sheetId || '';
-    document.getElementById('apiKey').value = state.apiKey || '';
+    // Set current date/time
+    const now = new Date();
+    setDateTimeInputs(now);
+    
+    // Load script URL
+    document.getElementById('scriptUrl').value = state.scriptUrl || '';
+    
+    setupEventListeners();
+    fetchExchangeRates();
+}
+
+function setDateTimeInputs(date) {
+    const dateStr = date.toISOString().split('T')[0];
+    const timeStr = date.toTimeString().slice(0, 5);
+    
+    document.getElementById('expenseDate').value = dateStr;
+    document.getElementById('expenseTime').value = timeStr;
+    document.getElementById('incomeDate').value = dateStr;
+    document.getElementById('incomeTime').value = timeStr;
+}
+
+// Load State from LocalStorage
+function loadState() {
+    const saved = localStorage.getItem('expenseTrackerSecureState');
+    if (saved) {
+        try {
+            const savedState = JSON.parse(saved);
+            state = { ...state, ...savedState };
+        } catch (e) {
+            console.error('Error loading state:', e);
+        }
+    }
+}
+
+// Save State to LocalStorage
+function saveState() {
+    localStorage.setItem('expenseTrackerSecureState', JSON.stringify(state));
+}
+
+// Get Current Group
+function getCurrentGroup() {
+    return state.groups[state.currentGroup];
 }
 
 // Setup Event Listeners
 function setupEventListeners() {
-    // Tab switching
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    // Bottom navigation tabs
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
 
     // Transaction type toggle
-    document.querySelectorAll('.type-btn').forEach(btn => {
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
         btn.addEventListener('click', () => toggleTransactionType(btn.dataset.type));
     });
 
@@ -104,9 +104,9 @@ function setupEventListeners() {
     document.getElementById('expenseForm').addEventListener('submit', addExpense);
     document.getElementById('incomeForm').addEventListener('submit', addIncome);
 
-    // Currency change
-    document.getElementById('currency').addEventListener('change', updateCurrencyConversion);
-    document.getElementById('amount').addEventListener('input', updateCurrencyConversion);
+    // Currency change - update conversion
+    document.getElementById('expenseCurrency').addEventListener('change', updateExpenseCurrencyConversion);
+    document.getElementById('expenseAmount').addEventListener('input', updateExpenseCurrencyConversion);
     document.getElementById('incomeCurrency').addEventListener('change', updateIncomeCurrencyConversion);
     document.getElementById('incomeAmount').addEventListener('input', updateIncomeCurrencyConversion);
 
@@ -128,13 +128,17 @@ function setupEventListeners() {
     document.getElementById('addMember').addEventListener('click', addMember);
 
     // Settings
-    document.getElementById('saveConnection').addEventListener('click', saveConnection);
-    document.getElementById('testConnection').addEventListener('click', testConnection);
+    document.getElementById('saveScriptUrl').addEventListener('click', saveScriptUrl);
+    document.getElementById('testScript').addEventListener('click', testScriptConnection);
     document.getElementById('clearGroupData').addEventListener('click', clearGroupData);
     document.getElementById('clearAllData').addEventListener('click', clearAllData);
     
     // Sync button
-    document.getElementById('syncBtn').addEventListener('click', syncWithSheets);
+    document.getElementById('syncBtn').addEventListener('click', syncWithScript);
+
+    // Logout buttons
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+    document.getElementById('logoutBtnSettings').addEventListener('click', logout);
 
     // Filters
     document.getElementById('filterType').addEventListener('change', updateExpensesList);
@@ -144,13 +148,13 @@ function setupEventListeners() {
     // Online/Offline detection
     window.addEventListener('online', () => {
         state.isOnline = true;
-        updateConnectionStatus('Připojeno k internetu', 'success');
+        showToast('Připojeno k internetu', 'success');
         fetchExchangeRates();
     });
     
     window.addEventListener('offline', () => {
         state.isOnline = false;
-        updateConnectionStatus('Offline režim', 'warning');
+        showToast('Offline režim', 'warning');
     });
 
     // Click outside to close dropdown
@@ -162,19 +166,17 @@ function setupEventListeners() {
     });
 }
 
-// Fetch Exchange Rates from CNB
+// Fetch Exchange Rates from ČNB
 async function fetchExchangeRates() {
     if (!state.isOnline) return;
     
     try {
-        // CNB provides rates in format: date|CZK|amount|code|rate
         const response = await fetch('https://www.cnb.cz/cs/financni-trhy/devizovy-trh/kurzy-devizoveho-trhu/kurzy-devizoveho-trhu/denni_kurz.txt');
         const text = await response.text();
         
         const lines = text.split('\n');
         const rates = { CZK: 1 };
         
-        // Parse rates (skip first 2 header lines)
         for (let i = 2; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
@@ -184,7 +186,7 @@ async function fetchExchangeRates() {
                 const currency = parts[3];
                 const amount = parseFloat(parts[2]);
                 const rate = parseFloat(parts[4].replace(',', '.'));
-                rates[currency] = rate / amount; // Rate per 1 unit
+                rates[currency] = rate / amount;
             }
         }
         
@@ -192,20 +194,9 @@ async function fetchExchangeRates() {
         state.lastRateUpdate = new Date().toISOString();
         saveState();
         
-        console.log('Exchange rates updated from CNB:', rates);
+        console.log('Exchange rates updated from ČNB');
     } catch (error) {
-        console.error('Failed to fetch exchange rates:', error);
-        // Use fallback rates if available
-        if (!state.exchangeRates.EUR) {
-            state.exchangeRates = {
-                CZK: 1,
-                EUR: 25.0,
-                USD: 23.0,
-                GBP: 29.0,
-                THB: 0.65,
-                PLN: 5.8
-            };
-        }
+        console.log('Using fallback exchange rates');
     }
 }
 
@@ -217,11 +208,11 @@ function convertToCZK(amount, currency) {
 }
 
 // Update Currency Conversion Display
-function updateCurrencyConversion() {
-    const amount = parseFloat(document.getElementById('amount').value) || 0;
-    const currency = document.getElementById('currency').value;
-    const note = document.getElementById('currencyNote');
-    const conversion = document.getElementById('currencyConversion');
+function updateExpenseCurrencyConversion() {
+    const amount = parseInt(document.getElementById('expenseAmount').value) || 0;
+    const currency = document.getElementById('expenseCurrency').value;
+    const note = document.getElementById('expenseCurrencyNote');
+    const conversion = document.getElementById('expenseCurrencyConversion');
     
     if (currency === 'CZK' || amount === 0) {
         note.classList.add('hidden');
@@ -230,12 +221,12 @@ function updateCurrencyConversion() {
     
     const czk = convertToCZK(amount, currency);
     const rate = state.exchangeRates[currency] || 0;
-    conversion.textContent = `≈ ${czk.toLocaleString('cs-CZ', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Kč (kurz: ${rate.toFixed(2)} Kč/${currency})`;
+    conversion.textContent = `≈ ${Math.round(czk).toLocaleString('cs-CZ')} Kč (kurz: ${rate.toFixed(2)} Kč/${currency})`;
     note.classList.remove('hidden');
 }
 
 function updateIncomeCurrencyConversion() {
-    const amount = parseFloat(document.getElementById('incomeAmount').value) || 0;
+    const amount = parseInt(document.getElementById('incomeAmount').value) || 0;
     const currency = document.getElementById('incomeCurrency').value;
     const note = document.getElementById('incomeCurrencyNote');
     const conversion = document.getElementById('incomeCurrencyConversion');
@@ -247,27 +238,26 @@ function updateIncomeCurrencyConversion() {
     
     const czk = convertToCZK(amount, currency);
     const rate = state.exchangeRates[currency] || 0;
-    conversion.textContent = `≈ ${czk.toLocaleString('cs-CZ', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Kč (kurz: ${rate.toFixed(2)} Kč/${currency})`;
+    conversion.textContent = `≈ ${Math.round(czk).toLocaleString('cs-CZ')} Kč (kurz: ${rate.toFixed(2)} Kč/${currency})`;
     note.classList.remove('hidden');
 }
 
 // Tab Switching
 function switchTab(tabName) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
     
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.getElementById(`${tabName}Tab`).classList.add('active');
     
-    // Update views
     if (tabName === 'expenses') updateExpensesList();
     if (tabName === 'balance') updateBalance();
     if (tabName === 'stats') updateStatistics();
 }
 
-// Toggle Transaction Type
+// Toggle Transaction Type (Expense/Income)
 function toggleTransactionType(type) {
-    document.querySelectorAll('.type-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelector(`[data-type="${type}"]`).classList.add('active');
     
     if (type === 'expense') {
@@ -289,14 +279,14 @@ function toggleSplitMode(mode) {
 
 // Update Split Between
 function updateSplitBetween(mode = 'equal') {
-    const container = document.getElementById('splitBetween');
+    const container = document.getElementById('expenseSplitBetween');
     const group = getCurrentGroup();
     
     container.innerHTML = '';
     
     group.members.forEach(member => {
         const div = document.createElement('div');
-        div.className = 'split-item';
+        div.className = 'split-item checked';
         
         if (mode === 'equal') {
             div.innerHTML = `
@@ -307,18 +297,16 @@ function updateSplitBetween(mode = 'equal') {
             div.innerHTML = `
                 <input type="checkbox" id="split-${member}" value="${member}" checked>
                 <label for="split-${member}">${member}</label>
-                <input type="number" id="amount-${member}" placeholder="Částka" step="0.01" min="0">
+                <input type="number" id="amount-${member}" placeholder="Částka" pattern="[0-9]*" inputmode="numeric" min="0">
             `;
         }
         
         container.appendChild(div);
         
-        // Update checked state visually
         const checkbox = div.querySelector('input[type="checkbox"]');
         checkbox.addEventListener('change', () => {
             div.classList.toggle('checked', checkbox.checked);
         });
-        div.classList.add('checked');
     });
 }
 
@@ -377,7 +365,7 @@ function switchGroup(groupId) {
     updateMemberSelects();
     updateAllViews();
     toggleGroupDropdown();
-    showNotification(`Přepnuto na: ${state.groups[groupId].name}`);
+    showToast(`Přepnuto na: ${state.groups[groupId].name}`);
 }
 
 function showAddGroupModal() {
@@ -401,7 +389,7 @@ function saveNewGroup() {
     state.groups[id] = {
         id: id,
         name: name,
-        members: [...getCurrentGroup().members], // Copy members from current group
+        members: [...getCurrentGroup().members],
         transactions: [],
         settlements: []
     };
@@ -412,7 +400,7 @@ function saveNewGroup() {
     updateMemberSelects();
     updateAllViews();
     hideGroupModal();
-    showNotification(`Skupina "${name}" vytvořena`);
+    showToast(`Skupina "${name}" vytvořena`);
 }
 
 function deleteGroup(groupId) {
@@ -422,9 +410,7 @@ function deleteGroup(groupId) {
     }
     
     const group = state.groups[groupId];
-    if (!confirm(`Opravdu smazat skupinu "${group.name}"? Všechna data budou ztracena.`)) {
-        return;
-    }
+    if (!confirm(`Opravdu smazat skupinu "${group.name}"?`)) return;
     
     delete state.groups[groupId];
     
@@ -436,12 +422,12 @@ function deleteGroup(groupId) {
     updateGroupSelector();
     updateMemberSelects();
     updateAllViews();
-    showNotification(`Skupina "${group.name}" smazána`);
+    showToast(`Skupina smazána`);
 }
 
 // Categories Management
 function updateCategorySelects() {
-    const categorySelect = document.getElementById('category');
+    const categorySelect = document.getElementById('expenseCategory');
     const filterCategory = document.getElementById('filterCategory');
     
     categorySelect.innerHTML = '';
@@ -453,9 +439,7 @@ function updateCategorySelects() {
         option.textContent = `${cat.icon} ${cat.name}`;
         categorySelect.appendChild(option);
         
-        const filterOption = document.createElement('option');
-        filterOption.value = cat.name;
-        filterOption.textContent = `${cat.icon} ${cat.name}`;
+        const filterOption = option.cloneNode(true);
         filterCategory.appendChild(filterOption);
     });
 }
@@ -503,7 +487,7 @@ function addCategory() {
     saveState();
     updateCategorySelects();
     updateCategoriesList();
-    showNotification('Kategorie přidána');
+    showToast('Kategorie přidána');
 }
 
 function removeCategory(index) {
@@ -513,21 +497,19 @@ function removeCategory(index) {
     }
     
     const cat = state.categories[index];
-    if (!confirm(`Opravdu odebrat kategorii "${cat.name}"?`)) {
-        return;
-    }
+    if (!confirm(`Opravdu odebrat kategorii "${cat.name}"?`)) return;
     
     state.categories.splice(index, 1);
     saveState();
     updateCategorySelects();
     updateCategoriesList();
-    showNotification('Kategorie odebrána');
+    showToast('Kategorie odebrána');
 }
 
 // Members Management
 function updateMemberSelects() {
     const group = getCurrentGroup();
-    const selects = ['paidBy', 'incomeRecipient'];
+    const selects = ['expensePaidBy', 'incomeRecipient'];
     
     selects.forEach(selectId => {
         const select = document.getElementById(selectId);
@@ -588,7 +570,7 @@ function addMember() {
     saveState();
     updateMemberSelects();
     updateMembersList();
-    showNotification('Člen přidán');
+    showToast('Člen přidán');
 }
 
 function removeMember(index) {
@@ -604,18 +586,14 @@ function removeMember(index) {
         t.paidBy === member || (t.splitBetween && t.splitBetween.some(s => s.person === member))
     );
     
-    if (hasTransactions) {
-        if (!confirm(`${member} má transakce. Opravdu odebrat?`)) {
-            return;
-        }
-    }
+    if (hasTransactions && !confirm(`${member} má transakce. Opravdu odebrat?`)) return;
     
     group.members.splice(index, 1);
     saveState();
     updateMemberSelects();
     updateMembersList();
     updateAllViews();
-    showNotification('Člen odebrán');
+    showToast('Člen odebrán');
 }
 
 // Add Expense
@@ -623,53 +601,36 @@ function addExpense(e) {
     e.preventDefault();
     const group = getCurrentGroup();
     
-    const description = document.getElementById('description').value.trim();
-    const amount = parseFloat(document.getElementById('amount').value);
-    const currency = document.getElementById('currency').value;
-    const date = document.getElementById('date').value;
-    const time = document.getElementById('time').value;
-    const paidBy = document.getElementById('paidBy').value;
-    const category = document.getElementById('category').value;
-    const note = document.getElementById('note').value.trim();
+    const description = document.getElementById('expenseDescription').value.trim();
+    const amount = parseInt(document.getElementById('expenseAmount').value);
+    const currency = document.getElementById('expenseCurrency').value;
+    const date = document.getElementById('expenseDate').value;
+    const time = document.getElementById('expenseTime').value;
+    const paidBy = document.getElementById('expensePaidBy').value;
+    const category = document.getElementById('expenseCategory').value;
+    const note = document.getElementById('expenseNote').value.trim();
     
-    // Get split mode
     const mode = document.querySelector('.mode-btn.active').dataset.mode;
     const splitBetween = [];
     
     if (mode === 'equal') {
-        const checkboxes = document.querySelectorAll('#splitBetween input[type="checkbox"]:checked');
+        const checkboxes = document.querySelectorAll('#expenseSplitBetween input[type="checkbox"]:checked');
         checkboxes.forEach(cb => {
-            splitBetween.push({
-                person: cb.value,
-                amount: null // Will be calculated equally
-            });
+            splitBetween.push({ person: cb.value, amount: null });
         });
     } else {
-        const checkboxes = document.querySelectorAll('#splitBetween input[type="checkbox"]:checked');
+        const checkboxes = document.querySelectorAll('#expenseSplitBetween input[type="checkbox"]:checked');
         checkboxes.forEach(cb => {
-            const customAmount = parseFloat(document.getElementById(`amount-${cb.value}`).value) || 0;
+            const customAmount = parseInt(document.getElementById(`amount-${cb.value}`).value) || 0;
             if (customAmount > 0) {
-                splitBetween.push({
-                    person: cb.value,
-                    amount: customAmount
-                });
+                splitBetween.push({ person: cb.value, amount: customAmount });
             }
         });
     }
     
     if (!description || !amount || !paidBy || splitBetween.length === 0) {
-        alert('Vyplň všechna pole a vyber alespoň jednoho člena');
+        alert('Vyplň všechna pole');
         return;
-    }
-    
-    // Validate custom amounts
-    if (mode === 'custom') {
-        const totalCustom = splitBetween.reduce((sum, s) => sum + s.amount, 0);
-        if (Math.abs(totalCustom - amount) > 0.01) {
-            if (!confirm(`Součet vlastních částek (${totalCustom}) neodpovídá celkové částce (${amount}). Pokračovat?`)) {
-                return;
-            }
-        }
     }
     
     const amountCZK = convertToCZK(amount, currency);
@@ -693,23 +654,19 @@ function addExpense(e) {
     group.transactions.push(transaction);
     saveState();
     
-    // Reset form
     document.getElementById('expenseForm').reset();
-    const now = new Date();
-    document.getElementById('date').valueAsDate = now;
-    document.getElementById('time').value = now.toTimeString().slice(0,5);
-    document.getElementById('currency').value = 'CZK';
+    setDateTimeInputs(new Date());
     updateSplitBetween('equal');
     document.querySelector('[data-mode="equal"]').classList.add('active');
     document.querySelector('[data-mode="custom"]').classList.remove('active');
     
     switchTab('expenses');
     
-    if (state.isOnline && state.sheetId && state.apiKey) {
-        syncWithSheets();
-    }
+    showToast('Výdaj přidán ✅');
     
-    showNotification('Výdaj přidán ✅');
+    if (state.isOnline && state.scriptUrl) {
+        syncWithScript();
+    }
 }
 
 // Add Income
@@ -718,7 +675,7 @@ function addIncome(e) {
     const group = getCurrentGroup();
     
     const description = document.getElementById('incomeDescription').value.trim();
-    const amount = parseFloat(document.getElementById('incomeAmount').value);
+    const amount = parseInt(document.getElementById('incomeAmount').value);
     const currency = document.getElementById('incomeCurrency').value;
     const date = document.getElementById('incomeDate').value;
     const time = document.getElementById('incomeTime').value;
@@ -748,20 +705,16 @@ function addIncome(e) {
     group.transactions.push(transaction);
     saveState();
     
-    // Reset form
     document.getElementById('incomeForm').reset();
-    const now = new Date();
-    document.getElementById('incomeDate').valueAsDate = now;
-    document.getElementById('incomeTime').value = now.toTimeString().slice(0,5);
-    document.getElementById('incomeCurrency').value = 'CZK';
+    setDateTimeInputs(new Date());
     
     switchTab('expenses');
     
-    if (state.isOnline && state.sheetId && state.apiKey) {
-        syncWithSheets();
-    }
+    showToast('Příjem přidán ✅');
     
-    showNotification('Příjem přidán ✅');
+    if (state.isOnline && state.scriptUrl) {
+        syncWithScript();
+    }
 }
 
 // Update Expenses List
@@ -783,7 +736,6 @@ function updateExpensesList() {
         return;
     }
     
-    // Sort by date (newest first)
     transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
     
     list.innerHTML = '';
@@ -803,8 +755,8 @@ function updateExpensesList() {
         let metaInfo = '';
         if (transaction.type === 'expense') {
             const splitInfo = transaction.splitMode === 'equal' 
-                ? `Rozděleno rovnoměrně mezi: ${transaction.splitBetween.map(s => s.person).join(', ')}`
-                : `Vlastní rozdělení mezi: ${transaction.splitBetween.map(s => `${s.person} (${s.amount} ${transaction.currency})`).join(', ')}`;
+                ? `Rovnoměrně: ${transaction.splitBetween.map(s => s.person).join(', ')}`
+                : `Vlastní: ${transaction.splitBetween.map(s => `${s.person} (${s.amount})`).join(', ')}`;
             metaInfo = `${transaction.paidBy} zaplatil • ${dateStr}<br>${splitInfo}`;
         } else {
             metaInfo = `Příjem pro: ${transaction.recipient} • ${dateStr}`;
@@ -812,7 +764,7 @@ function updateExpensesList() {
         
         const displayAmount = transaction.currency === 'CZK' 
             ? `${transaction.amount.toLocaleString('cs-CZ')} Kč`
-            : `${transaction.amount.toLocaleString('cs-CZ')} ${transaction.currency} (${transaction.amountCZK.toLocaleString('cs-CZ')} Kč)`;
+            : `${transaction.amount.toLocaleString('cs-CZ')} ${transaction.currency} (${Math.round(transaction.amountCZK)} Kč)`;
         
         div.innerHTML = `
             <div class="expense-header">
@@ -840,7 +792,7 @@ function updateExpensesList() {
 }
 
 function deleteTransaction(id) {
-    if (!confirm('Opravdu smazat tuto transakci?')) return;
+    if (!confirm('Opravdu smazat?')) return;
     
     const group = getCurrentGroup();
     group.transactions = group.transactions.filter(t => t.id !== id);
@@ -848,7 +800,7 @@ function deleteTransaction(id) {
     updateExpensesList();
     updateBalance();
     updateStatistics();
-    showNotification('Transakce smazána');
+    showToast('Transakce smazána');
 }
 
 // Calculate Balance
@@ -862,10 +814,8 @@ function calculateBalance() {
     
     group.transactions.forEach(transaction => {
         if (transaction.type === 'expense') {
-            // Add full amount to payer
             balances[transaction.paidBy] += transaction.amountCZK;
             
-            // Subtract shares from each person
             if (transaction.splitMode === 'equal') {
                 const sharePerPerson = transaction.amountCZK / transaction.splitBetween.length;
                 transaction.splitBetween.forEach(split => {
@@ -882,7 +832,6 @@ function calculateBalance() {
                 });
             }
         } else if (transaction.type === 'income') {
-            // Income increases recipient's balance
             balances[transaction.recipient] += transaction.amountCZK;
         }
     });
@@ -942,12 +891,9 @@ function updateBalance() {
         .filter(t => t.type === 'income')
         .reduce((sum, t) => sum + t.amountCZK, 0);
     
-    document.getElementById('totalExpenses').textContent = 
-        totalExpenses.toLocaleString('cs-CZ') + ' Kč';
-    document.getElementById('totalIncomes').textContent = 
-        totalIncomes.toLocaleString('cs-CZ') + ' Kč';
+    document.getElementById('totalExpenses').textContent = Math.round(totalExpenses).toLocaleString('cs-CZ') + ' Kč';
+    document.getElementById('totalIncomes').textContent = Math.round(totalIncomes).toLocaleString('cs-CZ') + ' Kč';
     
-    // Update balance list
     const list = document.getElementById('balanceList');
     list.innerHTML = '';
     
@@ -961,17 +907,13 @@ function updateBalance() {
         div.innerHTML = `
             <div class="balance-name">${person}</div>
             <div class="balance-amount ${isPositive ? 'positive' : isNegative ? 'negative' : ''}">
-                ${isPositive ? '+' : ''}${balance.toLocaleString('cs-CZ', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                })} Kč
+                ${isPositive ? '+' : ''}${Math.round(balance).toLocaleString('cs-CZ')} Kč
             </div>
         `;
         
         list.appendChild(div);
     });
     
-    // Update settlements
     const settlements = calculateSettlements(balances);
     const settlementsDiv = document.getElementById('settlementList');
     
@@ -992,10 +934,7 @@ function updateBalance() {
                 <div class="settlement-text">
                     <strong>${settlement.from}</strong> → 
                     <strong>${settlement.to}</strong>: 
-                    ${settlement.amount.toLocaleString('cs-CZ', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    })} Kč
+                    ${Math.round(settlement.amount).toLocaleString('cs-CZ')} Kč
                 </div>
                 ${!isSettled ? `<button class="settlement-action" data-index="${index}">✓ Vyrovnáno</button>` : ''}
             `;
@@ -1014,14 +953,14 @@ function updateBalance() {
 function markSettlementAsPaid(settlement) {
     const group = getCurrentGroup();
     
-    if (confirm(`Označit jako vyrovnáno:\n${settlement.from} → ${settlement.to}: ${settlement.amount.toFixed(2)} Kč?`)) {
+    if (confirm(`Označit jako vyrovnáno:\n${settlement.from} → ${settlement.to}: ${Math.round(settlement.amount)} Kč?`)) {
         group.settlements.push({
             ...settlement,
             date: new Date().toISOString()
         });
         saveState();
         updateBalance();
-        showNotification('Dluh označen jako vyrovnán ✅');
+        showToast('Dluh označen jako vyrovnán ✅');
     }
 }
 
@@ -1030,7 +969,6 @@ function updateStatistics() {
     const group = getCurrentGroup();
     const timeRange = document.getElementById('statsTimeRange').value;
     
-    // Filter transactions by time range
     let transactions = [...group.transactions].filter(t => t.type === 'expense');
     
     if (timeRange !== 'all') {
@@ -1055,15 +993,12 @@ function updateStatistics() {
         return;
     }
     
-    // Calculate stats
     const total = transactions.reduce((sum, t) => sum + t.amountCZK, 0);
     const avg = total / transactions.length;
     
-    document.getElementById('avgExpense').textContent = 
-        avg.toLocaleString('cs-CZ', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + ' Kč';
+    document.getElementById('avgExpense').textContent = Math.round(avg).toLocaleString('cs-CZ') + ' Kč';
     document.getElementById('expenseCount').textContent = transactions.length;
     
-    // Top category
     const categoryTotals = {};
     transactions.forEach(t => {
         categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amountCZK;
@@ -1071,7 +1006,6 @@ function updateStatistics() {
     const topCat = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0];
     document.getElementById('topCategory').textContent = topCat ? topCat[0] : '-';
     
-    // Top spender
     const spenderTotals = {};
     transactions.forEach(t => {
         spenderTotals[t.paidBy] = (spenderTotals[t.paidBy] || 0) + t.amountCZK;
@@ -1079,7 +1013,6 @@ function updateStatistics() {
     const topSpender = Object.entries(spenderTotals).sort((a, b) => b[1] - a[1])[0];
     document.getElementById('topSpender').textContent = topSpender ? topSpender[0] : '-';
     
-    // Update charts
     updateCategoryChart(categoryTotals);
     updateTimelineChart(transactions);
 }
@@ -1098,14 +1031,11 @@ function destroyCharts() {
 function updateCategoryChart(categoryTotals) {
     const ctx = document.getElementById('categoryChart');
     
-    if (charts.category) {
-        charts.category.destroy();
-    }
+    if (charts.category) charts.category.destroy();
     
     const labels = Object.keys(categoryTotals);
     const data = Object.values(categoryTotals);
     
-    // Find matching icons
     const icons = labels.map(label => {
         const cat = state.categories.find(c => c.name === label);
         return cat ? cat.icon : '📦';
@@ -1118,14 +1048,8 @@ function updateCategoryChart(categoryTotals) {
             datasets: [{
                 data: data,
                 backgroundColor: [
-                    '#3b82f6',
-                    '#8b5cf6',
-                    '#10b981',
-                    '#f59e0b',
-                    '#ef4444',
-                    '#06b6d4',
-                    '#ec4899',
-                    '#84cc16'
+                    '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b',
+                    '#ef4444', '#06b6d4', '#ec4899', '#84cc16'
                 ],
                 borderWidth: 0
             }]
@@ -1138,11 +1062,8 @@ function updateCategoryChart(categoryTotals) {
                     position: 'bottom',
                     labels: {
                         color: '#f1f5f9',
-                        font: {
-                            family: "'Work Sans', sans-serif",
-                            size: 12
-                        },
-                        padding: 15
+                        font: { family: "'Work Sans', sans-serif", size: 11 },
+                        padding: 12
                     }
                 },
                 tooltip: {
@@ -1151,14 +1072,13 @@ function updateCategoryChart(categoryTotals) {
                     bodyColor: '#f1f5f9',
                     borderColor: '#334155',
                     borderWidth: 1,
-                    padding: 12,
-                    displayColors: true,
+                    padding: 10,
                     callbacks: {
                         label: function(context) {
                             const value = context.parsed;
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
                             const percentage = ((value / total) * 100).toFixed(1);
-                            return ` ${value.toLocaleString('cs-CZ')} Kč (${percentage}%)`;
+                            return ` ${Math.round(value).toLocaleString('cs-CZ')} Kč (${percentage}%)`;
                         }
                     }
                 }
@@ -1170,11 +1090,8 @@ function updateCategoryChart(categoryTotals) {
 function updateTimelineChart(transactions) {
     const ctx = document.getElementById('timelineChart');
     
-    if (charts.timeline) {
-        charts.timeline.destroy();
-    }
+    if (charts.timeline) charts.timeline.destroy();
     
-    // Group by date
     const dailyTotals = {};
     transactions.forEach(t => {
         const date = new Date(t.date).toLocaleDateString('cs-CZ');
@@ -1209,19 +1126,17 @@ function updateTimelineChart(transactions) {
             responsive: true,
             maintainAspectRatio: true,
             plugins: {
-                legend: {
-                    display: false
-                },
+                legend: { display: false },
                 tooltip: {
                     backgroundColor: '#1e293b',
                     titleColor: '#f1f5f9',
                     bodyColor: '#f1f5f9',
                     borderColor: '#334155',
                     borderWidth: 1,
-                    padding: 12,
+                    padding: 10,
                     callbacks: {
                         label: function(context) {
-                            return ` ${context.parsed.y.toLocaleString('cs-CZ')} Kč`;
+                            return ` ${Math.round(context.parsed.y).toLocaleString('cs-CZ')} Kč`;
                         }
                     }
                 }
@@ -1231,29 +1146,21 @@ function updateTimelineChart(transactions) {
                     beginAtZero: true,
                     ticks: {
                         color: '#94a3b8',
-                        font: {
-                            family: "'Work Sans', sans-serif"
-                        },
+                        font: { family: "'Work Sans', sans-serif", size: 10 },
                         callback: function(value) {
-                            return value.toLocaleString('cs-CZ') + ' Kč';
+                            return Math.round(value).toLocaleString('cs-CZ') + ' Kč';
                         }
                     },
-                    grid: {
-                        color: '#334155'
-                    }
+                    grid: { color: '#334155' }
                 },
                 x: {
                     ticks: {
                         color: '#94a3b8',
-                        font: {
-                            family: "'Work Sans', sans-serif"
-                        },
+                        font: { family: "'Work Sans', sans-serif", size: 9 },
                         maxRotation: 45,
                         minRotation: 45
                     },
-                    grid: {
-                        color: '#334155'
-                    }
+                    grid: { color: '#334155' }
                 }
             }
         }
@@ -1268,157 +1175,113 @@ function updateAllViews() {
     updateStatistics();
 }
 
-// Google Sheets Sync
-function saveConnection() {
-    state.sheetId = document.getElementById('sheetId').value.trim();
-    state.apiKey = document.getElementById('apiKey').value.trim();
+// Google Apps Script Sync
+function saveScriptUrl() {
+    state.scriptUrl = document.getElementById('scriptUrl').value.trim();
     saveState();
-    showNotification('Nastavení uloženo ✅');
+    showToast('URL uloženo ✅');
 }
 
-async function testConnection() {
-    if (!state.sheetId || !state.apiKey) {
-        alert('Vyplň ID tabulky a API klíč');
+async function testScriptConnection() {
+    if (!state.scriptUrl) {
+        alert('Vlož URL Apps Scriptu');
         return;
     }
     
-    updateConnectionStatus('Testuji připojení...', 'warning');
+    showToast('Testuji připojení...', 'warning');
     
     try {
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${state.sheetId}?key=${state.apiKey}`;
-        const response = await fetch(url);
+        const response = await fetch(state.scriptUrl + '?action=test', {
+            method: 'GET'
+        });
         
         if (response.ok) {
             const data = await response.json();
-            updateConnectionStatus(`✅ Připojeno k: ${data.properties.title}`, 'success');
-            setTimeout(() => {
-                document.getElementById('connectionStatus').classList.add('hidden');
-            }, 3000);
+            showToast(`✅ Připojeno: ${data.message || 'OK'}`, 'success');
         } else {
-            throw new Error('Neplatné přihlášení');
+            throw new Error('Chyba připojení');
         }
     } catch (error) {
-        updateConnectionStatus('❌ Chyba připojení', 'error');
+        showToast('❌ Chyba připojení', 'error');
         console.error(error);
     }
 }
 
-async function syncWithSheets() {
-    if (!state.sheetId || !state.apiKey) {
-        alert('Nejprve nastav Google Sheets připojení v Nastavení');
+async function syncWithScript() {
+    if (!state.scriptUrl) {
+        showToast('Nejprve nastav Apps Script URL');
         return;
     }
     
     if (!state.isOnline) {
-        showNotification('Není připojení k internetu');
+        showToast('Není připojení k internetu');
         return;
     }
     
     const syncBtn = document.getElementById('syncBtn');
     syncBtn.classList.add('syncing');
-    updateConnectionStatus('Synchronizuji...', 'warning');
+    showToast('Synchronizuji...', 'warning');
     
     try {
         const group = getCurrentGroup();
+        const user = getCurrentUser();
         
-        // Prepare data
-        const rows = group.transactions.map(t => {
-            if (t.type === 'expense') {
-                const splitInfo = t.splitMode === 'equal'
-                    ? `Rovnoměrně: ${t.splitBetween.map(s => s.person).join(', ')}`
-                    : `Vlastní: ${t.splitBetween.map(s => `${s.person}=${s.amount}`).join(', ')}`;
-                
-                return [
-                    new Date(t.date).toLocaleString('cs-CZ'),
-                    'Výdaj',
-                    t.description,
-                    t.amount,
-                    t.currency,
-                    t.amountCZK.toFixed(2),
-                    t.paidBy,
-                    splitInfo,
-                    t.category,
-                    t.note || ''
-                ];
-            } else {
-                return [
-                    new Date(t.date).toLocaleString('cs-CZ'),
-                    'Příjem',
-                    t.description,
-                    t.amount,
-                    t.currency,
-                    t.amountCZK.toFixed(2),
-                    t.recipient,
-                    '',
-                    '',
-                    t.note || ''
-                ];
-            }
-        });
-        
-        const header = [['Datum', 'Typ', 'Popis', 'Částka', 'Měna', 'Částka CZK', 'Kdo/Komu', 'Rozdělení', 'Kategorie', 'Poznámka']];
-        const allRows = [...header, ...rows];
-        
-        // Clear and update sheet
-        const clearUrl = `https://sheets.googleapis.com/v4/spreadsheets/${state.sheetId}/values/${group.name}!A1:Z1000:clear?key=${state.apiKey}`;
-        await fetch(clearUrl, { method: 'POST' });
-        
-        const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${state.sheetId}/values/${group.name}!A1?valueInputOption=RAW&key=${state.apiKey}`;
-        const response = await fetch(updateUrl, {
-            method: 'PUT',
+        const response = await fetch(state.scriptUrl, {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ values: allRows })
+            body: JSON.stringify({
+                action: 'sync',
+                groupId: group.id,
+                groupName: group.name,
+                transactions: group.transactions,
+                user: user
+            })
         });
         
         if (response.ok) {
             group.transactions.forEach(t => t.synced = true);
             saveState();
-            updateConnectionStatus('✅ Synchronizováno', 'success');
-            setTimeout(() => {
-                document.getElementById('connectionStatus').classList.add('hidden');
-            }, 3000);
+            showToast('✅ Synchronizováno', 'success');
         } else {
             throw new Error('Sync failed');
         }
     } catch (error) {
-        updateConnectionStatus('❌ Chyba synchronizace', 'error');
+        showToast('❌ Chyba synchronizace', 'error');
         console.error(error);
     } finally {
         syncBtn.classList.remove('syncing');
     }
 }
 
-function updateConnectionStatus(message, type) {
-    const status = document.getElementById('connectionStatus');
-    const text = document.getElementById('statusText');
+// Toast Notifications
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    const text = document.getElementById('toastText');
     
-    status.className = 'connection-status ' + type;
+    toast.className = `toast ${type}`;
     text.textContent = message;
-    status.classList.remove('hidden');
-}
-
-function showNotification(message) {
-    updateConnectionStatus(message, 'success');
+    toast.classList.remove('hidden');
+    
     setTimeout(() => {
-        document.getElementById('connectionStatus').classList.add('hidden');
-    }, 2000);
+        toast.classList.add('hidden');
+    }, 3000);
 }
 
 // Clear Data
 function clearGroupData() {
     const group = getCurrentGroup();
-    if (!confirm(`Opravdu smazat všechna data skupiny "${group.name}"? Tato akce je nevratná!`)) return;
+    if (!confirm(`Opravdu smazat všechna data skupiny "${group.name}"?`)) return;
     
     group.transactions = [];
     group.settlements = [];
     saveState();
     updateAllViews();
-    showNotification('Data skupiny smazána');
+    showToast('Data skupiny smazána');
 }
 
 function clearAllData() {
-    if (!confirm('Opravdu smazat VŠECHNA data ze VŠECH skupin? Tato akce je nevratná!')) return;
-    if (!confirm('Jsi si opravdu jistý? Všechna data budou ztracena navždy.')) return;
+    if (!confirm('Opravdu smazat VŠECHNA data?')) return;
+    if (!confirm('Jsi si opravdu jistý?')) return;
     
     Object.values(state.groups).forEach(group => {
         group.transactions = [];
@@ -1442,5 +1305,8 @@ function clearAllData() {
     updateMembersList();
     updateAllViews();
     
-    showNotification('Všechna data smazána');
+    showToast('Všechna data smazána');
 }
+
+// Load state on start
+loadState();

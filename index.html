@@ -2,22 +2,46 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Výdaje Pro">
+    <meta name="apple-mobile-web-app-title" content="Výdaje">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0f172a">
-    <title>Výdaje Pro - Skupinové finance</title>
+    <title>💎 Výdaje - Zabezpečené</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
-    <div class="app">
-        <!-- Header with Group Selector -->
+    <!-- Login Screen (shown when not authenticated) -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-container">
+            <div class="login-logo">💎</div>
+            <h1 class="login-title">Výdaje Pro</h1>
+            <p class="login-subtitle">Zabezpečená správa skupinových financí</p>
+            
+            <div id="googleSignInButton" class="google-signin-placeholder"></div>
+            
+            <div class="login-features">
+                <div class="feature-item">✅ Skupiny a kategorie</div>
+                <div class="feature-item">✅ Multi-měna s ČNB kurzy</div>
+                <div class="feature-item">✅ Grafy a statistiky</div>
+                <div class="feature-item">🔒 Zabezpečené Google přihlášením</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App (shown when authenticated) -->
+    <div id="mainApp" class="app hidden">
+        
+        <!-- Fixed Header -->
         <header class="header">
             <div class="header-content">
                 <div class="header-left">
@@ -33,103 +57,111 @@
                         </div>
                     </div>
                 </div>
-                <button id="syncBtn" class="sync-btn" title="Synchronizovat">
-                    <span class="sync-icon">⟳</span>
-                </button>
+                <div class="header-right">
+                    <button id="syncBtn" class="sync-btn" title="Synchronizovat">
+                        <span class="sync-icon">⟳</span>
+                    </button>
+                    <button id="logoutBtn" class="logout-btn" title="Odhlásit se">
+                        <span>👤</span>
+                    </button>
+                </div>
             </div>
         </header>
 
-        <!-- Connection Status -->
-        <div id="connectionStatus" class="connection-status hidden">
-            <span id="statusText"></span>
+        <!-- Toast Notifications (z-index 9999) -->
+        <div id="toast" class="toast hidden">
+            <span id="toastText"></span>
         </div>
 
-        <!-- Navigation Tabs -->
-        <nav class="tabs">
-            <button class="tab active" data-tab="add">
-                <span class="tab-icon">➕</span>
-                <span class="tab-label">Přidat</span>
+        <!-- Fixed Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-tab="add">
+                <span class="nav-icon">➕</span>
+                <span class="nav-label">Přidat</span>
             </button>
-            <button class="tab" data-tab="expenses">
-                <span class="tab-icon">📋</span>
-                <span class="tab-label">Výdaje</span>
+            <button class="nav-btn" data-tab="expenses">
+                <span class="nav-icon">📋</span>
+                <span class="nav-label">Výdaje</span>
             </button>
-            <button class="tab" data-tab="balance">
-                <span class="tab-icon">💰</span>
-                <span class="tab-label">Bilance</span>
+            <button class="nav-btn" data-tab="balance">
+                <span class="nav-icon">💰</span>
+                <span class="nav-label">Bilance</span>
             </button>
-            <button class="tab" data-tab="stats">
-                <span class="tab-icon">📊</span>
-                <span class="tab-label">Statistiky</span>
+            <button class="nav-btn" data-tab="stats">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Statistiky</span>
             </button>
-            <button class="tab" data-tab="settings">
-                <span class="tab-icon">⚙️</span>
-                <span class="tab-label">Nastavení</span>
+            <button class="nav-btn" data-tab="settings">
+                <span class="nav-icon">⚙️</span>
+                <span class="nav-label">Nastavení</span>
             </button>
         </nav>
 
-        <!-- Tab Content -->
-        <div class="content">
+        <!-- Scrollable Content Area -->
+        <div class="content-wrapper">
             
             <!-- Add Expense/Income Tab -->
             <div id="addTab" class="tab-content active">
-                <div class="add-type-selector">
-                    <button class="type-btn active" data-type="expense">Výdaj</button>
-                    <button class="type-btn" data-type="income">Příjem</button>
+                <div class="toggle-type">
+                    <button class="toggle-btn active" data-type="expense">
+                        <span class="toggle-icon">💸</span>
+                        <span>Výdaj</span>
+                    </button>
+                    <button class="toggle-btn" data-type="income">
+                        <span class="toggle-icon">💵</span>
+                        <span>Příjem</span>
+                    </button>
                 </div>
 
                 <!-- Expense Form -->
                 <form id="expenseForm" class="transaction-form">
                     <div class="form-group">
-                        <label for="description">Popis</label>
-                        <input type="text" id="description" placeholder="Např. Večeře v restauraci" required>
+                        <label for="expenseDescription">Popis</label>
+                        <input type="text" id="expenseDescription" placeholder="Např. Večeře v restauraci" required autocomplete="off">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="expenseAmount">Částka (celá čísla)</label>
+                        <input type="number" id="expenseAmount" placeholder="0" pattern="[0-9]*" inputmode="numeric" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="expenseCurrency">Měna</label>
+                        <select id="expenseCurrency">
+                            <option value="CZK" selected>CZK</option>
+                            <option value="EUR">EUR</option>
+                            <option value="USD">USD</option>
+                            <option value="GBP">GBP</option>
+                            <option value="THB">THB</option>
+                            <option value="PLN">PLN</option>
+                        </select>
+                    </div>
+
+                    <div id="expenseCurrencyNote" class="currency-note hidden">
+                        <span id="expenseCurrencyConversion"></span>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group flex-1">
-                            <label for="amount">Částka</label>
-                            <input type="number" id="amount" placeholder="0" step="0.01" required>
-                        </div>
-                        <div class="form-group" style="width: 120px;">
-                            <label for="currency">Měna</label>
-                            <select id="currency">
-                                <option value="CZK" selected>CZK</option>
-                                <option value="EUR">EUR</option>
-                                <option value="USD">USD</option>
-                                <option value="GBP">GBP</option>
-                                <option value="THB">THB</option>
-                                <option value="PLN">PLN</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div id="currencyNote" class="currency-note hidden">
-                        <span id="currencyConversion"></span>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group flex-1">
-                            <label for="date">Datum</label>
-                            <input type="date" id="date" required>
+                            <label for="expenseDate">Datum</label>
+                            <input type="date" id="expenseDate" required>
                         </div>
                         <div class="form-group flex-1">
-                            <label for="time">Čas</label>
-                            <input type="time" id="time" required>
+                            <label for="expenseTime">Čas</label>
+                            <input type="time" id="expenseTime" required>
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="paidBy">Kdo platil</label>
-                        <select id="paidBy" required>
+                        <label for="expensePaidBy">Kdo platil</label>
+                        <select id="expensePaidBy" required>
                             <option value="">Vyber osobu</option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label for="category">Kategorie</label>
-                        <select id="category">
-                            <!-- Dynamically populated -->
-                        </select>
+                        <label for="expenseCategory">Kategorie</label>
+                        <select id="expenseCategory" required></select>
                     </div>
 
                     <div class="form-group">
@@ -137,17 +169,15 @@
                             Rozdělit mezi
                             <span class="split-mode-toggle">
                                 <button type="button" class="mode-btn active" data-mode="equal">Rovnoměrně</button>
-                                <button type="button" class="mode-btn" data-mode="custom">Vlastní částky</button>
+                                <button type="button" class="mode-btn" data-mode="custom">Vlastní</button>
                             </span>
                         </label>
-                        <div id="splitBetween" class="split-container">
-                            <!-- Dynamically populated -->
-                        </div>
+                        <div id="expenseSplitBetween" class="split-container"></div>
                     </div>
 
                     <div class="form-group">
-                        <label for="note">Poznámka (volitelné)</label>
-                        <textarea id="note" placeholder="Dodatečné informace k výdaji..." rows="3"></textarea>
+                        <label for="expenseNote">Poznámka (volitelné)</label>
+                        <textarea id="expenseNote" placeholder="Dodatečné informace..." rows="2"></textarea>
                     </div>
 
                     <button type="submit" class="btn-primary">
@@ -156,29 +186,28 @@
                     </button>
                 </form>
 
-                <!-- Income Form -->
+                <!-- Income Form (hidden by default) -->
                 <form id="incomeForm" class="transaction-form hidden">
                     <div class="form-group">
                         <label for="incomeDescription">Popis příjmu</label>
-                        <input type="text" id="incomeDescription" placeholder="Např. Vrácení peněz, výplata..." required>
+                        <input type="text" id="incomeDescription" placeholder="Např. Vrácení peněz" required autocomplete="off">
                     </div>
 
-                    <div class="form-row">
-                        <div class="form-group flex-1">
-                            <label for="incomeAmount">Částka</label>
-                            <input type="number" id="incomeAmount" placeholder="0" step="0.01" required>
-                        </div>
-                        <div class="form-group" style="width: 120px;">
-                            <label for="incomeCurrency">Měna</label>
-                            <select id="incomeCurrency">
-                                <option value="CZK" selected>CZK</option>
-                                <option value="EUR">EUR</option>
-                                <option value="USD">USD</option>
-                                <option value="GBP">GBP</option>
-                                <option value="THB">THB</option>
-                                <option value="PLN">PLN</option>
-                            </select>
-                        </div>
+                    <div class="form-group">
+                        <label for="incomeAmount">Částka (celá čísla)</label>
+                        <input type="number" id="incomeAmount" placeholder="0" pattern="[0-9]*" inputmode="numeric" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="incomeCurrency">Měna</label>
+                        <select id="incomeCurrency">
+                            <option value="CZK" selected>CZK</option>
+                            <option value="EUR">EUR</option>
+                            <option value="USD">USD</option>
+                            <option value="GBP">GBP</option>
+                            <option value="THB">THB</option>
+                            <option value="PLN">PLN</option>
+                        </select>
                     </div>
 
                     <div id="incomeCurrencyNote" class="currency-note hidden">
@@ -205,7 +234,7 @@
 
                     <div class="form-group">
                         <label for="incomeNote">Poznámka (volitelné)</label>
-                        <textarea id="incomeNote" placeholder="Dodatečné informace k příjmu..." rows="3"></textarea>
+                        <textarea id="incomeNote" placeholder="Dodatečné informace..." rows="2"></textarea>
                     </div>
 
                     <button type="submit" class="btn-primary btn-income">
@@ -263,7 +292,7 @@
             <!-- Statistics Tab -->
             <div id="statsTab" class="tab-content">
                 <div class="stats-header">
-                    <h2>📊 Statistiky a přehledy</h2>
+                    <h2>📊 Statistiky</h2>
                     <select id="statsTimeRange" class="filter-select">
                         <option value="all">Celkem</option>
                         <option value="month">Tento měsíc</option>
@@ -310,10 +339,20 @@
                 <div class="settings">
                     
                     <div class="settings-section">
-                        <h3>🏷️ Kategorie výdajů</h3>
-                        <div id="categoriesList" class="categories-list">
-                            <!-- Dynamically populated -->
+                        <h3>👤 Účet</h3>
+                        <div class="user-info">
+                            <div class="user-avatar" id="userAvatar"></div>
+                            <div class="user-details">
+                                <div class="user-name" id="userName">Načítám...</div>
+                                <div class="user-email" id="userEmail"></div>
+                            </div>
                         </div>
+                        <button id="logoutBtnSettings" class="btn-secondary">Odhlásit se</button>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>🏷️ Kategorie výdajů</h3>
+                        <div id="categoriesList" class="categories-list"></div>
                         <div class="add-category">
                             <input type="text" id="newCategoryName" placeholder="Název kategorie">
                             <input type="text" id="newCategoryIcon" placeholder="Emoji" maxlength="2" style="width: 60px;">
@@ -323,9 +362,7 @@
 
                     <div class="settings-section">
                         <h3>👥 Účastníci skupiny</h3>
-                        <div id="membersList" class="members-list">
-                            <!-- Dynamically populated -->
-                        </div>
+                        <div id="membersList" class="members-list"></div>
                         <div class="add-member">
                             <input type="text" id="newMember" placeholder="Jméno nového účastníka">
                             <button id="addMember" class="btn-secondary">Přidat</button>
@@ -333,18 +370,14 @@
                     </div>
 
                     <div class="settings-section">
-                        <h3>☁️ Google Sheets připojení</h3>
+                        <h3>☁️ Google Apps Script URL</h3>
                         <div class="form-group">
-                            <label for="sheetId">ID Google tabulky</label>
-                            <input type="text" id="sheetId" placeholder="Vlož ID tabulky">
-                            <small>Najdeš v URL: docs.google.com/spreadsheets/d/<strong>ID_TABULKY</strong>/edit</small>
+                            <label for="scriptUrl">URL Apps Script</label>
+                            <input type="text" id="scriptUrl" placeholder="https://script.google.com/macros/s/...">
+                            <small>Po vytvoření Apps Scriptu vlož sem jeho URL</small>
                         </div>
-                        <div class="form-group">
-                            <label for="apiKey">Google API klíč</label>
-                            <input type="password" id="apiKey" placeholder="Vlož API klíč">
-                        </div>
-                        <button id="saveConnection" class="btn-primary">Uložit připojení</button>
-                        <button id="testConnection" class="btn-secondary">Test připojení</button>
+                        <button id="saveScriptUrl" class="btn-primary">Uložit URL</button>
+                        <button id="testScript" class="btn-secondary">Test připojení</button>
                     </div>
 
                     <div class="settings-section">
@@ -355,8 +388,9 @@
 
                     <div class="settings-section">
                         <h3>ℹ️ O aplikaci</h3>
-                        <p><strong>Verze:</strong> 2.0.0 Pro</p>
-                        <p><strong>Funkce:</strong> Skupiny, Multi-měna, Grafy, Vyrovnání dluhů</p>
+                        <p><strong>Verze:</strong> 3.0.0 Secure</p>
+                        <p><strong>Zabezpečení:</strong> Google OAuth</p>
+                        <p><strong>Backend:</strong> Google Apps Script</p>
                         <p>Offline PWA pro profesionální sledování skupinových financí</p>
                     </div>
                 </div>
@@ -371,7 +405,7 @@
             <h3>Nová skupina</h3>
             <div class="form-group">
                 <label for="groupName">Název skupiny</label>
-                <input type="text" id="groupName" placeholder="Např. Thajsko 2025, Leden 2025...">
+                <input type="text" id="groupName" placeholder="Např. Thajsko 2025">
             </div>
             <div class="modal-actions">
                 <button id="cancelGroup" class="btn-secondary">Zrušit</button>
@@ -380,18 +414,8 @@
         </div>
     </div>
 
-    <div id="settlementModal" class="modal hidden">
-        <div class="modal-content">
-            <h3>Vyrovnat dluh</h3>
-            <p id="settlementText"></p>
-            <div class="modal-actions">
-                <button id="cancelSettlement" class="btn-secondary">Zrušit</button>
-                <button id="confirmSettlement" class="btn-primary">Označit jako vyrovnáno</button>
-            </div>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="auth.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
