@@ -91,6 +91,10 @@
                 <span class="nav-icon">📊</span>
                 <span class="nav-label">Statistiky</span>
             </button>
+            <button class="nav-btn" data-tab="invitations">
+                <span class="nav-icon">📬</span>
+                <span class="nav-label">Pozvánky</span>
+            </button>
             <button class="nav-btn" data-tab="settings">
                 <span class="nav-icon">⚙️</span>
                 <span class="nav-label">Nastavení</span>
@@ -289,6 +293,16 @@
                 </div>
             </div>
 
+            <!-- Invitations Tab -->
+            <div id="invitationsTab" class="tab-content">
+                <div class="section-header">
+                    <h2>📬 Pozvánky do skupin</h2>
+                </div>
+                <div id="invitationsList" class="invitations-list">
+                    <p class="empty-state">Žádné čekající pozvánky</p>
+                </div>
+            </div>
+
             <!-- Statistics Tab -->
             <div id="statsTab" class="tab-content">
                 <div class="stats-header">
@@ -348,6 +362,21 @@
                             </div>
                         </div>
                         <button id="logoutBtnSettings" class="btn-secondary">Odhlásit se</button>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>🏢 Organizace</h3>
+                        <div class="org-info">
+                            <div class="org-name">FAMILY</div>
+                            <div id="orgMembersCount" class="org-members">Načítám...</div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>👥 Správa aktuální skupiny</h3>
+                        <div id="currentGroupManagement">
+                            <p class="empty-state">Vyber skupinu</p>
+                        </div>
                     </div>
 
                     <div class="settings-section">

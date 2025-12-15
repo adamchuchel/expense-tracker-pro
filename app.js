@@ -3,6 +3,8 @@ let state = {
     scriptUrl: localStorage.getItem('scriptUrl') || '',
     groups: [],
     currentGroupId: null,
+    invitations: [],
+    organizationMembers: [],
     categories: [
         { name: 'Jídlo', icon: '🍕' },
         { name: 'Doprava', icon: '🚗' },
@@ -23,7 +25,7 @@ let charts = { category: null, timeline: null };
 // === INITIALIZATION ===
 
 async function initializeApp() {
-    console.log('🚀 Initializing app...');
+    console.log('🚀 Initializing FAMILY app...');
     
     // Load script URL
     document.getElementById('scriptUrl').value = state.scriptUrl;
@@ -36,14 +38,16 @@ async function initializeApp() {
     
     // Load data from backend
     if (state.scriptUrl) {
+        await loadOrganizationData();
         await loadGroupsFromBackend();
+        await loadInvitations();
     }
     
     // Initialize UI
     updateCategorySelects();
     setDateTimeInputs(new Date());
     
-    console.log('✅ App initialized');
+    console.log('✅ FAMILY app initialized');
 }
 
 function setupEventListeners() {
@@ -234,6 +238,7 @@ function updateGroupSelector() {
             state.currentGroupId = group.group_id;
             updateGroupSelector();
             loadCurrentGroupData();
+            updateGroupManagement();
             toggleGroupDropdown();
             showToast(`Přepnuto: ${group.name}`);
         });
@@ -630,7 +635,11 @@ function switchTab(tabName) {
     if (tabName === 'expenses') updateExpensesList();
     if (tabName === 'balance') updateBalance();
     if (tabName === 'stats') updateStatistics();
-    if (tabName === 'settings') updateCategoriesList();
+    if (tabName === 'invitations') updateInvitationsList();
+    if (tabName === 'settings') {
+        updateCategoriesList();
+        updateGroupManagement();
+    }
 }
 
 function toggleTransactionType(type) {
@@ -823,5 +832,320 @@ function showToast(message, type = 'success') {
     setTimeout(() => toast.classList.add('hidden'), 3000);
 }
 
+// === ORGANIZATION ===
+
+async function loadOrganizationData() {
+    try {
+        const data = await apiCall('get_organization', {});
+        state.organizationMembers = data.members;
+        
+        document.getElementById('orgMembersCount').textContent = 
+            `${data.members.length} členů`;
+        
+        console.log('✅ Organization loaded:', data.name);
+    } catch (error) {
+        console.error('Load organization error:', error);
+    }
+}
+
+// === INVITATIONS ===
+
+async function loadInvitations() {
+    try {
+        const user = getCurrentUser();
+        if (!user) return;
+        
+        const data = await apiCall('get_invitations', {
+            user_email: user.email
+        });
+        
+        state.invitations = data.invitations;
+        updateInvitationsList();
+        
+        // Show badge if has invitations
+        if (data.invitations.length > 0) {
+            showToast(`📬 Máš ${data.invitations.length} nových pozvánek!`, 'success');
+        }
+        
+    } catch (error) {
+        console.error('Load invitations error:', error);
+    }
+}
+
+function updateInvitationsList() {
+    const list = document.getElementById('invitationsList');
+    
+    if (state.invitations.length === 0) {
+        list.innerHTML = '<p class="empty-state">Žádné čekající pozvánky</p>';
+        return;
+    }
+    
+    list.innerHTML = '';
+    
+    state.invitations.forEach(inv => {
+        const div = document.createElement('div');
+        div.className = 'invitation-item';
+        
+        const date = new Date(inv.created_at);
+        const dateStr = date.toLocaleDateString('cs-CZ');
+        
+        div.innerHTML = `
+            <div class="invitation-header">
+                <div class="invitation-title">
+                    <strong>${inv.group_name}</strong>
+                </div>
+                <div class="invitation-date">${dateStr}</div>
+            </div>
+            <div class="invitation-from">
+                Pozvánka od: ${inv.invited_by_name}
+            </div>
+            <div class="invitation-actions">
+                <button class="btn-success" onclick="acceptInvitation('${inv.invitation_id}')">
+                    ✓ Přijmout
+                </button>
+                <button class="btn-secondary" onclick="declineInvitation('${inv.invitation_id}')">
+                    ✗ Odmítnout
+                </button>
+            </div>
+        `;
+        
+        list.appendChild(div);
+    });
+}
+
+async function acceptInvitation(invitationId) {
+    const user = getCurrentUser();
+    if (!user) return;
+    
+    try {
+        const data = await apiCall('accept_invitation', {
+            invitation_id: invitationId,
+            user_email: user.email,
+            user_name: user.name
+        });
+        
+        await loadGroupsFromBackend();
+        await loadInvitations();
+        
+        showToast(`✅ Přijato! Vítej ve skupině ${data.group_name}`, 'success');
+        
+        // Switch to groups tab
+        switchTab('expenses');
+        
+    } catch (error) {
+        console.error('Accept invitation error:', error);
+        showToast('❌ Chyba při přijetí pozvánky', 'error');
+    }
+}
+
+async function declineInvitation(invitationId) {
+    const user = getCurrentUser();
+    if (!user) return;
+    
+    if (!confirm('Opravdu odmítnout pozvánku?')) return;
+    
+    try {
+        await apiCall('decline_invitation', {
+            invitation_id: invitationId,
+            user_email: user.email
+        });
+        
+        await loadInvitations();
+        
+        showToast('Pozvánka odmítnuta', 'success');
+        
+    } catch (error) {
+        console.error('Decline invitation error:', error);
+        showToast('❌ Chyba při odmítnutí', 'error');
+    }
+}
+
+// === GROUP MANAGEMENT ===
+
+function updateGroupManagement() {
+    const container = document.getElementById('currentGroupManagement');
+    const group = getCurrentGroup();
+    
+    if (!group) {
+        container.innerHTML = '<p class="empty-state">Vyber skupinu</p>';
+        return;
+    }
+    
+    const user = getCurrentUser();
+    const isOwner = group.is_owner;
+    
+    let html = `
+        <div class="group-info-card">
+            <h4>${group.name}</h4>
+            <div class="group-meta">Vytvořeno: ${new Date(group.created_at).toLocaleDateString('cs-CZ')}</div>
+        </div>
+        
+        <div class="members-section">
+            <h4>👥 Členové skupiny (${group.members.length})</h4>
+            <div class="members-grid">
+    `;
+    
+    group.members.forEach(member => {
+        const isMe = member.email === user.email;
+        const canRemove = isOwner && !isMe && member.role !== 'owner';
+        
+        html += `
+            <div class="member-card">
+                <div class="member-info">
+                    <div class="member-name">
+                        ${member.name} ${isMe ? '(ty)' : ''}
+                    </div>
+                    <div class="member-email">${member.email}</div>
+                    <div class="member-role">${member.role === 'owner' ? '👑 Vlastník' : '👤 Člen'}</div>
+                </div>
+                ${canRemove ? `
+                    <button class="btn-danger-small" onclick="removeMember('${member.email}')">
+                        Odebrat
+                    </button>
+                ` : ''}
+            </div>
+        `;
+    });
+    
+    html += `
+            </div>
+        </div>
+    `;
+    
+    // Invite section
+    html += `
+        <div class="invite-section">
+            <h4>➕ Pozvat člena</h4>
+            <p class="help-text">Pozvi kohokoli z organizace FAMILY</p>
+            <div class="invite-form">
+                <input type="email" id="inviteEmail" placeholder="Email člena" class="invite-input">
+                <button onclick="inviteMember()" class="btn-primary">Poslat pozvánku</button>
+            </div>
+        </div>
+    `;
+    
+    // Delete group (only owner)
+    if (isOwner) {
+        html += `
+            <div class="danger-zone">
+                <h4>🗑️ Nebezpečná zóna</h4>
+                <p class="help-text">Smazání skupiny je nevratné!</p>
+                <button onclick="deleteCurrentGroup()" class="btn-danger">
+                    Smazat skupinu
+                </button>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
+
+async function inviteMember() {
+    const email = document.getElementById('inviteEmail').value.trim();
+    
+    if (!email) {
+        alert('Zadej email');
+        return;
+    }
+    
+    if (!email.includes('@')) {
+        alert('Neplatný email');
+        return;
+    }
+    
+    const group = getCurrentGroup();
+    const user = getCurrentUser();
+    
+    if (!group || !user) return;
+    
+    // Check if already member
+    if (group.members.some(m => m.email === email)) {
+        alert('Tento člověk už je ve skupině');
+        return;
+    }
+    
+    try {
+        await apiCall('invite_member', {
+            group_id: group.group_id,
+            invited_email: email,
+            invited_by: user.email,
+            invited_by_name: user.name
+        });
+        
+        document.getElementById('inviteEmail').value = '';
+        showToast(`✅ Pozvánka odeslána na ${email}`, 'success');
+        
+    } catch (error) {
+        console.error('Invite error:', error);
+        showToast('❌ ' + error.message, 'error');
+    }
+}
+
+async function removeMember(memberEmail) {
+    const group = getCurrentGroup();
+    const user = getCurrentUser();
+    
+    if (!group || !user) return;
+    
+    const member = group.members.find(m => m.email === memberEmail);
+    if (!member) return;
+    
+    if (!confirm(`Opravdu odebrat ${member.name} ze skupiny?`)) return;
+    
+    try {
+        await apiCall('remove_member', {
+            group_id: group.group_id,
+            member_email: memberEmail,
+            user_email: user.email
+        });
+        
+        await loadGroupsFromBackend();
+        await loadCurrentGroupData();
+        updateGroupManagement();
+        
+        showToast(`✅ ${member.name} odebrán ze skupiny`, 'success');
+        
+    } catch (error) {
+        console.error('Remove member error:', error);
+        showToast('❌ ' + error.message, 'error');
+    }
+}
+
+async function deleteCurrentGroup() {
+    const group = getCurrentGroup();
+    const user = getCurrentUser();
+    
+    if (!group || !user) return;
+    
+    if (!group.is_owner) {
+        alert('Pouze vlastník může smazat skupinu');
+        return;
+    }
+    
+    if (!confirm(`OPRAVDU smazat skupinu "${group.name}"?\n\nTato akce je NEVRATNÁ!\nVšechny výdaje budou smazány!`)) {
+        return;
+    }
+    
+    if (!confirm('Jsi si naprosto jistý? Nelze vrátit zpět!')) {
+        return;
+    }
+    
+    try {
+        await apiCall('delete_group', {
+            group_id: group.group_id,
+            user_email: user.email
+        });
+        
+        await loadGroupsFromBackend();
+        
+        showToast('✅ Skupina smazána', 'success');
+        
+    } catch (error) {
+        console.error('Delete group error:', error);
+        showToast('❌ ' + error.message, 'error');
+    }
+}
+
 // Initialize when auth is ready
-console.log('✅ App script loaded');
+console.log('✅ FAMILY App script loaded');
+
