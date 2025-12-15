@@ -297,46 +297,78 @@ async function saveNewGroup() {
 
 function updateMemberSelects() {
     const group = getCurrentGroup();
+    const user = getCurrentUser();
     if (!group || !group.members) return;
     
     const selects = ['expensePaidBy', 'incomeRecipient'];
     
     selects.forEach(selectId => {
         const select = document.getElementById(selectId);
-        select.innerHTML = '<option value="">Vyber osobu</option>';
+        select.innerHTML = '';
         
         group.members.forEach(member => {
             const option = document.createElement('option');
             option.value = member.email;
             option.textContent = member.name;
+            
+            // Auto-select current user
+            if (user && member.email === user.email) {
+                option.selected = true;
+            }
+            
             select.appendChild(option);
         });
     });
     
-    updateSplitBetween();
+    // Update split with only current user pre-checked
+    updateSplitBetween('equal', true);
 }
 
-function updateSplitBetween(mode = 'equal') {
+function updateSplitBetween(mode = 'equal', autoSelectCurrentUser = false) {
     const container = document.getElementById('expenseSplitBetween');
     const group = getCurrentGroup();
+    const user = getCurrentUser();
     if (!group || !group.members) return;
     
     container.innerHTML = '';
     
     group.members.forEach(member => {
         const div = document.createElement('div');
-        div.className = 'split-item checked';
+        
+        // Auto-check only current user by default
+        const isCurrentUser = user && member.email === user.email;
+        const shouldBeChecked = autoSelectCurrentUser ? isCurrentUser : true;
+        
+        div.className = shouldBeChecked ? 'split-item checked' : 'split-item';
+        
+        // Get first letter for avatar if no picture
+        const initial = member.name.charAt(0).toUpperCase();
+        const avatarStyle = member.picture 
+            ? `background-image: url('${member.picture}'); background-size: cover;`
+            : '';
         
         if (mode === 'equal') {
             div.innerHTML = `
-                <input type="checkbox" id="split-${member.email}" value="${member.email}" checked>
-                <label for="split-${member.email}">${member.name}</label>
+                <input type="checkbox" id="split-${member.email}" value="${member.email}" ${shouldBeChecked ? 'checked' : ''}>
+                <label for="split-${member.email}" class="split-label">
+                    <div class="split-avatar" style="${avatarStyle}">
+                        ${member.picture ? '' : initial}
+                    </div>
+                    <span class="split-name">${member.name}</span>
+                    ${isCurrentUser ? '<span class="split-badge">Ty</span>' : ''}
+                </label>
             `;
         } else {
             div.innerHTML = `
-                <input type="checkbox" id="split-${member.email}" value="${member.email}" checked>
-                <label for="split-${member.email}">${member.name}</label>
-                <input type="number" id="amount-${member.email}" placeholder="Částka" pattern="[0-9]*" inputmode="numeric" min="0">
+                <input type="checkbox" id="split-${member.email}" value="${member.email}" ${shouldBeChecked ? 'checked' : ''}>
+                <label for="split-${member.email}" class="split-label">
+                    <div class="split-avatar" style="${avatarStyle}">
+                        ${member.picture ? '' : initial}
+                    </div>
+                    <span class="split-name">${member.name}</span>
+                    ${isCurrentUser ? '<span class="split-badge">Ty</span>' : ''}
+                </label>
+                <input type="number" id="amount-${member.email}" placeholder="Částka" pattern="[0-9]*" inputmode="numeric" min="0" class="split-amount-input">
             `;
         }
         
@@ -352,7 +384,7 @@ function updateSplitBetween(mode = 'equal') {
 function toggleSplitMode(mode) {
     document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
-    updateSplitBetween(mode);
+    updateSplitBetween(mode, false); // Don't auto-select when manually switching modes
 }
 
 // === CATEGORIES ===
@@ -428,6 +460,14 @@ async function addExpense(e) {
     const user = getCurrentUser();
     if (!group || !user) return;
     
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    const isEditing = e.target.dataset.editingId;
+    
+    // Disable button and show loading
+    submitBtn.disabled = true;
+    submitBtn.textContent = isEditing ? '⏳ Ukládám...' : '⏳ Přidávám...';
+    
     const description = document.getElementById('expenseDescription').value.trim();
     const amount = parseInt(document.getElementById('expenseAmount').value);
     const currency = document.getElementById('expenseCurrency').value;
@@ -457,6 +497,8 @@ async function addExpense(e) {
     
     if (!description || !amount || !paidBy || splitBetween.length === 0) {
         alert('Vyplň všechna pole');
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
         return;
     }
     
@@ -477,6 +519,14 @@ async function addExpense(e) {
     };
     
     try {
+        if (isEditing) {
+            // Delete old, add new (simpler than update API)
+            await apiCall('delete_transaction', {
+                transaction_id: isEditing,
+                user_email: user.email
+            });
+        }
+        
         await apiCall('add_transaction', {
             transaction,
             user_email: user.email
@@ -485,15 +535,22 @@ async function addExpense(e) {
         await loadCurrentGroupData();
         
         document.getElementById('expenseForm').reset();
+        delete e.target.dataset.editingId;
         setDateTimeInputs(new Date());
-        updateSplitBetween('equal');
+        updateSplitBetween('equal', true); // Auto-select current user
+        
+        // Reset button text
+        submitBtn.textContent = 'Přidat výdaj';
         
         switchTab('expenses');
-        showToast('✅ Výdaj přidán');
+        showToast(isEditing ? '✅ Výdaj upraven' : '✅ Výdaj přidán');
         
     } catch (error) {
-        console.error('Add expense error:', error);
-        showToast('❌ Chyba přidání výdaje', 'error');
+        console.error('Add/edit expense error:', error);
+        showToast('❌ Chyba', 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = isEditing ? '💾 Uložit změny' : 'Přidat výdaj';
     }
 }
 
@@ -503,6 +560,14 @@ async function addIncome(e) {
     const group = getCurrentGroup();
     const user = getCurrentUser();
     if (!group || !user) return;
+    
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    const isEditing = e.target.dataset.editingId;
+    
+    // Disable button and show loading
+    submitBtn.disabled = true;
+    submitBtn.textContent = isEditing ? '⏳ Ukládám...' : '⏳ Přidávám...';
     
     const description = document.getElementById('incomeDescription').value.trim();
     const amount = parseInt(document.getElementById('incomeAmount').value);
@@ -514,6 +579,8 @@ async function addIncome(e) {
     
     if (!description || !amount || !recipient) {
         alert('Vyplň všechna pole');
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
         return;
     }
     
@@ -532,6 +599,14 @@ async function addIncome(e) {
     };
     
     try {
+        if (isEditing) {
+            // Delete old, add new
+            await apiCall('delete_transaction', {
+                transaction_id: isEditing,
+                user_email: user.email
+            });
+        }
+        
         await apiCall('add_transaction', {
             transaction,
             user_email: user.email
@@ -540,14 +615,18 @@ async function addIncome(e) {
         await loadCurrentGroupData();
         
         document.getElementById('incomeForm').reset();
+        delete e.target.dataset.editingId;
         setDateTimeInputs(new Date());
         
         switchTab('expenses');
-        showToast('✅ Příjem přidán');
+        showToast(isEditing ? '✅ Příjem upraven' : '✅ Příjem přidán');
         
     } catch (error) {
-        console.error('Add income error:', error);
-        showToast('❌ Chyba přidání příjmu', 'error');
+        console.error('Add/edit income error:', error);
+        showToast('❌ Chyba', 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = isEditing ? '💾 Uložit změny' : 'Přidat příjem';
     }
 }
 
@@ -597,29 +676,42 @@ async function fetchExchangeRates() {
     if (!state.isOnline) return;
     
     try {
-        const response = await fetch('https://www.cnb.cz/cs/financni-trhy/devizovy-trh/kurzy-devizoveho-trhu/kurzy-devizoveho-trhu/denni_kurz.txt');
-        const text = await response.text();
+        // Use Exchange Rate API (free, no auth needed, no CORS issues)
+        const response = await fetch('https://api.exchangerate-api.com/v4/latest/CZK');
         
-        const lines = text.split('\n');
-        const rates = { CZK: 1 };
-        
-        for (let i = 2; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
-            
-            const parts = line.split('|');
-            if (parts.length >= 5) {
-                const currency = parts[3];
-                const amount = parseFloat(parts[2]);
-                const rate = parseFloat(parts[4].replace(',', '.'));
-                rates[currency] = rate / amount;
-            }
+        if (!response.ok) {
+            throw new Error('Failed to fetch rates');
         }
         
+        const data = await response.json();
+        
+        // Convert from CZK base to rates per 1 unit of foreign currency
+        // API gives: 1 CZK = X foreign currency
+        // We need: 1 foreign currency = Y CZK
+        const rates = {
+            CZK: 1,
+            EUR: 1 / data.rates.EUR,
+            USD: 1 / data.rates.USD,
+            GBP: 1 / data.rates.GBP,
+            THB: 1 / data.rates.THB,
+            PLN: 1 / data.rates.PLN
+        };
+        
         state.exchangeRates = rates;
-        console.log('✅ Exchange rates updated');
+        console.log('✅ Exchange rates updated from Exchange Rate API');
+        console.log('Rates:', rates);
+        
     } catch (error) {
-        console.log('Using fallback rates');
+        console.log('Using fallback rates:', error.message);
+        // Fallback rates (approximate)
+        state.exchangeRates = {
+            CZK: 1,
+            EUR: 25.0,
+            USD: 23.0,
+            GBP: 29.0,
+            THB: 0.65,
+            PLN: 5.8
+        };
     }
 }
 
@@ -712,6 +804,14 @@ function updateExpensesList() {
             </div>
             <div class="expense-meta">${meta}</div>
             ${t.note ? `<div class="expense-note">${t.note}</div>` : ''}
+            <div class="expense-actions">
+                <button class="btn-edit" onclick="editTransaction('${t.transaction_id}')">
+                    ✏️ Upravit
+                </button>
+                <button class="btn-delete" onclick="deleteTransaction('${t.transaction_id}')">
+                    🗑️ Smazat
+                </button>
+            </div>
         `;
         
         list.appendChild(div);
@@ -917,6 +1017,12 @@ async function acceptInvitation(invitationId) {
     const user = getCurrentUser();
     if (!user) return;
     
+    // Find button and disable it immediately
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Přijímám...';
+    
     try {
         const data = await apiCall('accept_invitation', {
             invitation_id: invitationId,
@@ -934,7 +1040,11 @@ async function acceptInvitation(invitationId) {
         
     } catch (error) {
         console.error('Accept invitation error:', error);
-        showToast('❌ Chyba při přijetí pozvánky', 'error');
+        showToast('❌ ' + error.message, 'error');
+        
+        // Re-enable button on error
+        btn.disabled = false;
+        btn.textContent = originalText;
     }
 }
 
@@ -943,6 +1053,12 @@ async function declineInvitation(invitationId) {
     if (!user) return;
     
     if (!confirm('Opravdu odmítnout pozvánku?')) return;
+    
+    // Find button and disable it
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Odmítám...';
     
     try {
         await apiCall('decline_invitation', {
@@ -957,6 +1073,9 @@ async function declineInvitation(invitationId) {
     } catch (error) {
         console.error('Decline invitation error:', error);
         showToast('❌ Chyba při odmítnutí', 'error');
+        
+        btn.disabled = false;
+        btn.textContent = originalText;
     }
 }
 
@@ -1064,6 +1183,12 @@ async function inviteMember() {
         return;
     }
     
+    // Find button and disable it
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Odesílám...';
+    
     try {
         await apiCall('invite_member', {
             group_id: group.group_id,
@@ -1078,6 +1203,9 @@ async function inviteMember() {
     } catch (error) {
         console.error('Invite error:', error);
         showToast('❌ ' + error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
     }
 }
 
@@ -1143,6 +1271,138 @@ async function deleteCurrentGroup() {
     } catch (error) {
         console.error('Delete group error:', error);
         showToast('❌ ' + error.message, 'error');
+    }
+}
+
+// === TRANSACTION MANAGEMENT ===
+
+async function deleteTransaction(transactionId) {
+    const user = getCurrentUser();
+    const group = getCurrentGroup();
+    if (!user || !group) return;
+    
+    const transaction = group.transactions.find(t => t.transaction_id === transactionId);
+    if (!transaction) return;
+    
+    // Check if user created this transaction
+    if (transaction.created_by !== user.email) {
+        alert('Můžeš smazat pouze své vlastní výdaje');
+        return;
+    }
+    
+    if (!confirm(`Opravdu smazat: ${transaction.description}?`)) return;
+    
+    try {
+        showToast('⏳ Mažu...', 'warning');
+        
+        await apiCall('delete_transaction', {
+            transaction_id: transactionId,
+            user_email: user.email
+        });
+        
+        await loadCurrentGroupData();
+        
+        showToast('✅ Výdaj smazán');
+        
+    } catch (error) {
+        console.error('Delete transaction error:', error);
+        showToast('❌ ' + error.message, 'error');
+    }
+}
+
+async function editTransaction(transactionId) {
+    const group = getCurrentGroup();
+    const user = getCurrentUser();
+    if (!group || !user) return;
+    
+    const transaction = group.transactions.find(t => t.transaction_id === transactionId);
+    if (!transaction) return;
+    
+    // Check if user created this transaction
+    if (transaction.created_by !== user.email) {
+        alert('Můžeš upravit pouze své vlastní výdaje');
+        return;
+    }
+    
+    // Switch to add tab
+    switchTab('add');
+    
+    if (transaction.type === 'expense') {
+        // Show expense form
+        document.querySelector('[data-type="expense"]').click();
+        
+        // Fill form
+        document.getElementById('expenseDescription').value = transaction.description;
+        document.getElementById('expenseAmount').value = transaction.amount;
+        document.getElementById('expenseCurrency').value = transaction.currency;
+        
+        const date = new Date(transaction.date);
+        document.getElementById('expenseDate').value = date.toISOString().split('T')[0];
+        document.getElementById('expenseTime').value = date.toTimeString().slice(0, 5);
+        
+        document.getElementById('expensePaidBy').value = transaction.paid_by;
+        document.getElementById('expenseCategory').value = transaction.category || '';
+        document.getElementById('expenseNote').value = transaction.note || '';
+        
+        // Set split mode
+        if (transaction.split_between && transaction.split_between.length > 0) {
+            const hasCustomAmounts = transaction.split_between.some(s => s.amount !== null);
+            const mode = hasCustomAmounts ? 'custom' : 'equal';
+            
+            document.querySelector(`[data-mode="${mode}"]`).click();
+            
+            // Update split checkboxes
+            setTimeout(() => {
+                transaction.split_between.forEach(split => {
+                    const checkbox = document.getElementById(`split-${split.person}`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                        checkbox.closest('.split-item').classList.add('checked');
+                        
+                        if (split.amount !== null) {
+                            const amountInput = document.getElementById(`amount-${split.person}`);
+                            if (amountInput) {
+                                amountInput.value = split.amount;
+                            }
+                        }
+                    }
+                });
+            }, 100);
+        }
+        
+        // Store original transaction ID for update
+        document.getElementById('expenseForm').dataset.editingId = transactionId;
+        
+        // Change button text
+        const submitBtn = document.querySelector('#expenseForm button[type="submit"]');
+        submitBtn.textContent = '💾 Uložit změny';
+        
+        showToast('📝 Editace výdaje - uprav a ulož změny', 'warning');
+        
+    } else {
+        // Show income form
+        document.querySelector('[data-type="income"]').click();
+        
+        // Fill form
+        document.getElementById('incomeDescription').value = transaction.description;
+        document.getElementById('incomeAmount').value = transaction.amount;
+        document.getElementById('incomeCurrency').value = transaction.currency;
+        
+        const date = new Date(transaction.date);
+        document.getElementById('incomeDate').value = date.toISOString().split('T')[0];
+        document.getElementById('incomeTime').value = date.toTimeString().slice(0, 5);
+        
+        document.getElementById('incomeRecipient').value = transaction.recipient || transaction.paid_by;
+        document.getElementById('incomeNote').value = transaction.note || '';
+        
+        // Store original transaction ID for update
+        document.getElementById('incomeForm').dataset.editingId = transactionId;
+        
+        // Change button text
+        const submitBtn = document.querySelector('#incomeForm button[type="submit"]');
+        submitBtn.textContent = '💾 Uložit změny';
+        
+        showToast('📝 Editace příjmu - uprav a ulož změny', 'warning');
     }
 }
 

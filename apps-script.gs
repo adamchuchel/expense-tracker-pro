@@ -531,8 +531,28 @@ function handleAcceptInvitation(data) {
       return createResponse(false, 'Invitation not found');
     }
     
-    // Add to group members
+    // Check if already accepted
+    if (invitation.status === 'accepted') {
+      return createResponse(false, 'Invitation already accepted');
+    }
+    
+    // Check if already member (prevent duplicates)
     const membersSheet = getSheet('group_members');
+    const members = getAllRows(membersSheet);
+    const alreadyMember = members.some(m => 
+      m.group_id === invitation.group_id && m.member_email === user_email
+    );
+    
+    if (alreadyMember) {
+      // Update invitation status but don't add again
+      invitationsSheet.getRange(invitationRow, 7).setValue('accepted');
+      return createResponse(true, 'Already a member', {
+        group_id: invitation.group_id,
+        group_name: invitation.group_name
+      });
+    }
+    
+    // Add to group members
     membersSheet.appendRow([
       invitation.group_id,
       user_email,
