@@ -137,11 +137,11 @@ H: created_at
 ### První přihlášení (TY):
 
 1. **Přihlásíš se** → automaticky člen FAMILY
-2. **Vytvoříš skupinu** "Thajsko 2025"
+2. **Vytvoříš skupinu** "Test"
 3. **Pozvešš Michala:**
    - Tab Nastavení
    - Správa skupiny
-   - Zadáš: `michal.michalek97@gmail.com`
+   - Zadáš: `email@gmail.com`
    - Poslat pozvánku
 4. ✅ Michal dostane pozvánku
 
@@ -150,7 +150,7 @@ H: created_at
 1. **Přihlásí se** → automaticky člen FAMILY
 2. **Tab "Pozvánky"** → vidí pozvánku od tebe
 3. **Klikne "Přijmout"**
-4. **Vidí skupinu "Thajsko"** v dropdownu
+4. **Vidí skupinu "Test"** v dropdownu
 5. **Přidá výdaj** → ty ho vidíš okamžitě
 6. **Může si vytvořit vlastní skupiny**
 7. **Může pozvat tebe** do své skupiny
@@ -211,25 +211,25 @@ H: created_at
 
 ### organization_members
 ```csv
-adam.chuchel@gmail.com, Adam Chuchel, https://..., 2025-12-15T...
-michal.michalek97@gmail.com, Michal Michalek, https://..., 2025-12-15T...
+email@gmail.com, name, https://..., 2025-12-15T...
+email2@gmail.com, name2, https://..., 2025-12-15T...
 ```
 
 ### groups
 ```csv
-uuid-123, Thajsko 2025, adam.chuchel@gmail.com, 2025-12-15T...
-uuid-456, Víkend v horách, michal.michalek97@gmail.com, 2025-12-15T...
+uuid-123, Test, email@gmail.com, 2025-12-15T...
+uuid-456, Víkend v horách, email2@gmail.com, 2025-12-15T...
 ```
 
 ### group_members
 ```csv
-uuid-123, adam.chuchel@gmail.com, Adam, owner, adam.chuchel@gmail.com, 2025-12-15T...
-uuid-123, michal.michalek97@gmail.com, Michal, member, adam.chuchel@gmail.com, 2025-12-15T...
+uuid-123, email@gmail.com, Adam, owner, email@gmail.com, 2025-12-15T...
+uuid-123, email2@gmail.com, Michal, member, email@gmail.com, 2025-12-15T...
 ```
 
 ### invitations
 ```csv
-uuid-789, uuid-123, Thajsko 2025, michal.michalek97@gmail.com, adam.chuchel@gmail.com, Adam, pending, 2025-12-15T...
+uuid-789, uuid-123, Test, email2@gmail.com, email@gmail.com, Adam, pending, 2025-12-15T...
 ```
 
 ---
@@ -256,7 +256,7 @@ uuid-789, uuid-123, Thajsko 2025, michal.michalek97@gmail.com, adam.chuchel@gmai
 
 ### Use Case 3: Dlouhodobá skupina
 
-**Adam vytvoří "Thajsko 2025"**
+**Adam vytvoří "Test"**
 - Pozve kamarády
 - 3 měsíce přidávání výdajů
 - Kdokoliv může přidat kdykoliv
