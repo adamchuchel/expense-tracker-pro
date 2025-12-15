@@ -1,6 +1,6 @@
 // Google OAuth Configuration
 // REPLACE WITH YOUR CLIENT ID FROM GOOGLE CLOUD CONSOLE
-const GOOGLE_CLIENT_ID =='530414372755-0bfpaeedvq6h2h48s8if6ega0a14jvkk.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID ='530414372755-0bfpaeedvq6h2h48s8if6ega0a14jvkk.apps.googleusercontent.com';
 
 let googleUser = null;
 let authToken = null;
