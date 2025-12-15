@@ -139,12 +139,17 @@ async function apiCall(action, data = {}) {
         throw new Error('Script URL not set');
     }
     
-    const url = state.scriptUrl + '?action=' + action;
+    // Apps Script requires special handling to avoid CORS preflight
+    const url = new URL(state.scriptUrl);
+    url.searchParams.set('action', action);
     
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+    // Add data as URL parameters for simple requests
+    const params = new URLSearchParams();
+    params.set('data', JSON.stringify(data));
+    
+    const response = await fetch(url + '&' + params.toString(), {
+        method: 'GET',
+        redirect: 'follow'
     });
     
     const result = await response.json();
@@ -820,4 +825,3 @@ function showToast(message, type = 'success') {
 
 // Initialize when auth is ready
 console.log('✅ App script loaded');
-
