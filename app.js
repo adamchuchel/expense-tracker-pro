@@ -1,0 +1,823 @@
+// Application State
+let state = {
+    scriptUrl: localStorage.getItem('scriptUrl') || '',
+    groups: [],
+    currentGroupId: null,
+    categories: [
+        { name: 'Jídlo', icon: '🍕' },
+        { name: 'Doprava', icon: '🚗' },
+        { name: 'Ubytování', icon: '🏠' },
+        { name: 'Zábava', icon: '🎉' },
+        { name: 'Nákupy', icon: '🛒' },
+        { name: 'Ostatní', icon: '📦' }
+    ],
+    exchangeRates: {
+        CZK: 1, EUR: 25.0, USD: 23.0,
+        GBP: 29.0, THB: 0.65, PLN: 5.8
+    },
+    isOnline: navigator.onLine
+};
+
+let charts = { category: null, timeline: null };
+
+// === INITIALIZATION ===
+
+async function initializeApp() {
+    console.log('🚀 Initializing app...');
+    
+    // Load script URL
+    document.getElementById('scriptUrl').value = state.scriptUrl;
+    
+    // Setup event listeners
+    setupEventListeners();
+    
+    // Fetch exchange rates
+    fetchExchangeRates();
+    
+    // Load data from backend
+    if (state.scriptUrl) {
+        await loadGroupsFromBackend();
+    }
+    
+    // Initialize UI
+    updateCategorySelects();
+    setDateTimeInputs(new Date());
+    
+    console.log('✅ App initialized');
+}
+
+function setupEventListeners() {
+    // Navigation
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // Transaction type toggle
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => toggleTransactionType(btn.dataset.type));
+    });
+
+    // Forms
+    document.getElementById('expenseForm').addEventListener('submit', addExpense);
+    document.getElementById('incomeForm').addEventListener('submit', addIncome);
+
+    // Currency updates
+    document.getElementById('expenseCurrency').addEventListener('change', updateExpenseCurrencyConversion);
+    document.getElementById('expenseAmount').addEventListener('input', updateExpenseCurrencyConversion);
+    document.getElementById('incomeCurrency').addEventListener('change', updateIncomeCurrencyConversion);
+    document.getElementById('incomeAmount').addEventListener('input', updateIncomeCurrencyConversion);
+
+    // Split mode
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => toggleSplitMode(btn.dataset.mode));
+    });
+
+    // Group management
+    document.getElementById('currentGroup').addEventListener('click', toggleGroupDropdown);
+    document.getElementById('addGroupBtn').addEventListener('click', showAddGroupModal);
+    document.getElementById('saveGroup').addEventListener('click', saveNewGroup);
+    document.getElementById('cancelGroup').addEventListener('click', hideGroupModal);
+
+    // Categories
+    document.getElementById('addCategory').addEventListener('click', addCategory);
+
+    // Settings
+    document.getElementById('saveScriptUrl').addEventListener('click', saveScriptUrl);
+    document.getElementById('testScript').addEventListener('click', testScriptConnection);
+
+    // Sync
+    document.getElementById('syncBtn').addEventListener('click', syncWithBackend);
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+    document.getElementById('logoutBtnSettings').addEventListener('click', logout);
+
+    // Filters
+    document.getElementById('filterType').addEventListener('change', updateExpensesList);
+    document.getElementById('filterCategory').addEventListener('change', updateExpensesList);
+    document.getElementById('statsTimeRange').addEventListener('change', updateStatistics);
+
+    // Online/offline
+    window.addEventListener('online', () => {
+        state.isOnline = true;
+        showToast('🟢 Online', 'success');
+        syncWithBackend();
+    });
+    
+    window.addEventListener('offline', () => {
+        state.isOnline = false;
+        showToast('🔴 Offline', 'warning');
+    });
+
+    // Click outside dropdown
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.group-selector')) {
+            document.getElementById('groupDropdown')?.classList.add('hidden');
+            document.getElementById('currentGroup')?.classList.remove('active');
+        }
+    });
+}
+
+function setDateTimeInputs(date) {
+    const dateStr = date.toISOString().split('T')[0];
+    const timeStr = date.toTimeString().slice(0, 5);
+    
+    document.getElementById('expenseDate').value = dateStr;
+    document.getElementById('expenseTime').value = timeStr;
+    document.getElementById('incomeDate').value = dateStr;
+    document.getElementById('incomeTime').value = timeStr;
+}
+
+// === BACKEND COMMUNICATION ===
+
+function getScriptUrl() {
+    return state.scriptUrl;
+}
+
+async function apiCall(action, data = {}) {
+    if (!state.scriptUrl) {
+        throw new Error('Script URL not set');
+    }
+    
+    const url = state.scriptUrl + '?action=' + action;
+    
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+        throw new Error(result.message);
+    }
+    
+    return result.data;
+}
+
+// === GROUPS ===
+
+async function loadGroupsFromBackend() {
+    try {
+        const user = getCurrentUser();
+        if (!user) return;
+        
+        const data = await apiCall('get_groups', {
+            user_email: user.email
+        });
+        
+        state.groups = data.groups;
+        
+        if (state.groups.length > 0 && !state.currentGroupId) {
+            state.currentGroupId = state.groups[0].group_id;
+        }
+        
+        updateGroupSelector();
+        await loadCurrentGroupData();
+        
+        console.log('✅ Groups loaded:', state.groups.length);
+        
+    } catch (error) {
+        console.error('Load groups error:', error);
+        showToast('❌ Chyba načítání skupin', 'error');
+    }
+}
+
+async function loadCurrentGroupData() {
+    const currentGroup = getCurrentGroup();
+    if (!currentGroup) return;
+    
+    try {
+        const data = await apiCall('get_transactions', {
+            group_id: currentGroup.group_id
+        });
+        
+        currentGroup.transactions = data.transactions;
+        
+        updateMemberSelects();
+        updateAllViews();
+        
+    } catch (error) {
+        console.error('Load transactions error:', error);
+    }
+}
+
+function getCurrentGroup() {
+    return state.groups.find(g => g.group_id === state.currentGroupId);
+}
+
+function updateGroupSelector() {
+    const currentGroup = getCurrentGroup();
+    if (!currentGroup) return;
+    
+    document.getElementById('currentGroupName').textContent = currentGroup.name;
+    
+    const groupList = document.getElementById('groupList');
+    groupList.innerHTML = '';
+    
+    state.groups.forEach(group => {
+        const div = document.createElement('div');
+        div.className = 'group-item';
+        if (group.group_id === state.currentGroupId) {
+            div.classList.add('active');
+        }
+        
+        div.innerHTML = `<span>${group.name}</span>`;
+        
+        div.addEventListener('click', () => {
+            state.currentGroupId = group.group_id;
+            updateGroupSelector();
+            loadCurrentGroupData();
+            toggleGroupDropdown();
+            showToast(`Přepnuto: ${group.name}`);
+        });
+        
+        groupList.appendChild(div);
+    });
+}
+
+function toggleGroupDropdown() {
+    const dropdown = document.getElementById('groupDropdown');
+    const button = document.getElementById('currentGroup');
+    dropdown.classList.toggle('hidden');
+    button.classList.toggle('active');
+}
+
+function showAddGroupModal() {
+    document.getElementById('groupModal').classList.remove('hidden');
+    document.getElementById('groupName').value = '';
+    document.getElementById('groupName').focus();
+}
+
+function hideGroupModal() {
+    document.getElementById('groupModal').classList.add('hidden');
+}
+
+async function saveNewGroup() {
+    const name = document.getElementById('groupName').value.trim();
+    if (!name) {
+        alert('Zadej název skupiny');
+        return;
+    }
+    
+    const user = getCurrentUser();
+    if (!user) return;
+    
+    try {
+        const data = await apiCall('create_group', {
+            name: name,
+            owner_email: user.email,
+            owner_name: user.name
+        });
+        
+        await loadGroupsFromBackend();
+        state.currentGroupId = data.group_id;
+        
+        hideGroupModal();
+        showToast(`✅ Skupina "${name}" vytvořena`);
+        
+    } catch (error) {
+        console.error('Create group error:', error);
+        showToast('❌ Chyba vytvoření skupiny', 'error');
+    }
+}
+
+// === MEMBERS ===
+
+function updateMemberSelects() {
+    const group = getCurrentGroup();
+    if (!group || !group.members) return;
+    
+    const selects = ['expensePaidBy', 'incomeRecipient'];
+    
+    selects.forEach(selectId => {
+        const select = document.getElementById(selectId);
+        select.innerHTML = '<option value="">Vyber osobu</option>';
+        
+        group.members.forEach(member => {
+            const option = document.createElement('option');
+            option.value = member.email;
+            option.textContent = member.name;
+            select.appendChild(option);
+        });
+    });
+    
+    updateSplitBetween();
+}
+
+function updateSplitBetween(mode = 'equal') {
+    const container = document.getElementById('expenseSplitBetween');
+    const group = getCurrentGroup();
+    if (!group || !group.members) return;
+    
+    container.innerHTML = '';
+    
+    group.members.forEach(member => {
+        const div = document.createElement('div');
+        div.className = 'split-item checked';
+        
+        if (mode === 'equal') {
+            div.innerHTML = `
+                <input type="checkbox" id="split-${member.email}" value="${member.email}" checked>
+                <label for="split-${member.email}">${member.name}</label>
+            `;
+        } else {
+            div.innerHTML = `
+                <input type="checkbox" id="split-${member.email}" value="${member.email}" checked>
+                <label for="split-${member.email}">${member.name}</label>
+                <input type="number" id="amount-${member.email}" placeholder="Částka" pattern="[0-9]*" inputmode="numeric" min="0">
+            `;
+        }
+        
+        container.appendChild(div);
+        
+        const checkbox = div.querySelector('input[type="checkbox"]');
+        checkbox.addEventListener('change', () => {
+            div.classList.toggle('checked', checkbox.checked);
+        });
+    });
+}
+
+function toggleSplitMode(mode) {
+    document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+    updateSplitBetween(mode);
+}
+
+// === CATEGORIES ===
+
+function updateCategorySelects() {
+    const categorySelect = document.getElementById('expenseCategory');
+    const filterCategory = document.getElementById('filterCategory');
+    
+    categorySelect.innerHTML = '';
+    filterCategory.innerHTML = '<option value="all">Všechny kategorie</option>';
+    
+    state.categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.name;
+        option.textContent = `${cat.icon} ${cat.name}`;
+        categorySelect.appendChild(option);
+        
+        const filterOption = option.cloneNode(true);
+        filterCategory.appendChild(filterOption);
+    });
+}
+
+function updateCategoriesList() {
+    const list = document.getElementById('categoriesList');
+    list.innerHTML = '';
+    
+    state.categories.forEach((cat, index) => {
+        const div = document.createElement('div');
+        div.className = 'category-item';
+        div.innerHTML = `
+            <span>${cat.icon} ${cat.name}</span>
+            <button class="category-remove" data-index="${index}">Odebrat</button>
+        `;
+        list.appendChild(div);
+    });
+    
+    document.querySelectorAll('.category-remove').forEach(btn => {
+        btn.addEventListener('click', e => {
+            const index = parseInt(e.target.dataset.index);
+            if (state.categories.length > 1) {
+                state.categories.splice(index, 1);
+                updateCategorySelects();
+                updateCategoriesList();
+            }
+        });
+    });
+}
+
+function addCategory() {
+    const name = document.getElementById('newCategoryName').value.trim();
+    const icon = document.getElementById('newCategoryIcon').value.trim() || '📦';
+    
+    if (!name) {
+        alert('Zadej název kategorie');
+        return;
+    }
+    
+    state.categories.push({ name, icon });
+    document.getElementById('newCategoryName').value = '';
+    document.getElementById('newCategoryIcon').value = '';
+    
+    updateCategorySelects();
+    updateCategoriesList();
+    showToast('✅ Kategorie přidána');
+}
+
+// === TRANSACTIONS ===
+
+async function addExpense(e) {
+    e.preventDefault();
+    
+    const group = getCurrentGroup();
+    const user = getCurrentUser();
+    if (!group || !user) return;
+    
+    const description = document.getElementById('expenseDescription').value.trim();
+    const amount = parseInt(document.getElementById('expenseAmount').value);
+    const currency = document.getElementById('expenseCurrency').value;
+    const date = document.getElementById('expenseDate').value;
+    const time = document.getElementById('expenseTime').value;
+    const paidBy = document.getElementById('expensePaidBy').value;
+    const category = document.getElementById('expenseCategory').value;
+    const note = document.getElementById('expenseNote').value.trim();
+    
+    const mode = document.querySelector('.mode-btn.active').dataset.mode;
+    const splitBetween = [];
+    
+    if (mode === 'equal') {
+        const checkboxes = document.querySelectorAll('#expenseSplitBetween input[type="checkbox"]:checked');
+        checkboxes.forEach(cb => {
+            splitBetween.push({ person: cb.value, amount: null });
+        });
+    } else {
+        const checkboxes = document.querySelectorAll('#expenseSplitBetween input[type="checkbox"]:checked');
+        checkboxes.forEach(cb => {
+            const customAmount = parseInt(document.getElementById(`amount-${cb.value}`).value) || 0;
+            if (customAmount > 0) {
+                splitBetween.push({ person: cb.value, amount: customAmount });
+            }
+        });
+    }
+    
+    if (!description || !amount || !paidBy || splitBetween.length === 0) {
+        alert('Vyplň všechna pole');
+        return;
+    }
+    
+    const amountCZK = convertToCZK(amount, currency);
+    
+    const transaction = {
+        group_id: group.group_id,
+        type: 'expense',
+        description,
+        amount,
+        currency,
+        amount_czk: amountCZK,
+        paid_by: paidBy,
+        split_between: splitBetween,
+        category,
+        note,
+        date: `${date}T${time}`
+    };
+    
+    try {
+        await apiCall('add_transaction', {
+            transaction,
+            user_email: user.email
+        });
+        
+        await loadCurrentGroupData();
+        
+        document.getElementById('expenseForm').reset();
+        setDateTimeInputs(new Date());
+        updateSplitBetween('equal');
+        
+        switchTab('expenses');
+        showToast('✅ Výdaj přidán');
+        
+    } catch (error) {
+        console.error('Add expense error:', error);
+        showToast('❌ Chyba přidání výdaje', 'error');
+    }
+}
+
+async function addIncome(e) {
+    e.preventDefault();
+    
+    const group = getCurrentGroup();
+    const user = getCurrentUser();
+    if (!group || !user) return;
+    
+    const description = document.getElementById('incomeDescription').value.trim();
+    const amount = parseInt(document.getElementById('incomeAmount').value);
+    const currency = document.getElementById('incomeCurrency').value;
+    const date = document.getElementById('incomeDate').value;
+    const time = document.getElementById('incomeTime').value;
+    const recipient = document.getElementById('incomeRecipient').value;
+    const note = document.getElementById('incomeNote').value.trim();
+    
+    if (!description || !amount || !recipient) {
+        alert('Vyplň všechna pole');
+        return;
+    }
+    
+    const amountCZK = convertToCZK(amount, currency);
+    
+    const transaction = {
+        group_id: group.group_id,
+        type: 'income',
+        description,
+        amount,
+        currency,
+        amount_czk: amountCZK,
+        recipient,
+        note,
+        date: `${date}T${time}`
+    };
+    
+    try {
+        await apiCall('add_transaction', {
+            transaction,
+            user_email: user.email
+        });
+        
+        await loadCurrentGroupData();
+        
+        document.getElementById('incomeForm').reset();
+        setDateTimeInputs(new Date());
+        
+        switchTab('expenses');
+        showToast('✅ Příjem přidán');
+        
+    } catch (error) {
+        console.error('Add income error:', error);
+        showToast('❌ Chyba přidání příjmu', 'error');
+    }
+}
+
+// === CURRENCY ===
+
+function convertToCZK(amount, currency) {
+    if (currency === 'CZK') return amount;
+    const rate = state.exchangeRates[currency] || 1;
+    return amount * rate;
+}
+
+function updateExpenseCurrencyConversion() {
+    const amount = parseInt(document.getElementById('expenseAmount').value) || 0;
+    const currency = document.getElementById('expenseCurrency').value;
+    const note = document.getElementById('expenseCurrencyNote');
+    const conversion = document.getElementById('expenseCurrencyConversion');
+    
+    if (currency === 'CZK' || amount === 0) {
+        note.classList.add('hidden');
+        return;
+    }
+    
+    const czk = convertToCZK(amount, currency);
+    const rate = state.exchangeRates[currency] || 0;
+    conversion.textContent = `≈ ${Math.round(czk).toLocaleString('cs-CZ')} Kč (kurz: ${rate.toFixed(2)} Kč/${currency})`;
+    note.classList.remove('hidden');
+}
+
+function updateIncomeCurrencyConversion() {
+    const amount = parseInt(document.getElementById('incomeAmount').value) || 0;
+    const currency = document.getElementById('incomeCurrency').value;
+    const note = document.getElementById('incomeCurrencyNote');
+    const conversion = document.getElementById('incomeCurrencyConversion');
+    
+    if (currency === 'CZK' || amount === 0) {
+        note.classList.add('hidden');
+        return;
+    }
+    
+    const czk = convertToCZK(amount, currency);
+    const rate = state.exchangeRates[currency] || 0;
+    conversion.textContent = `≈ ${Math.round(czk).toLocaleString('cs-CZ')} Kč (kurz: ${rate.toFixed(2)} Kč/${currency})`;
+    note.classList.remove('hidden');
+}
+
+async function fetchExchangeRates() {
+    if (!state.isOnline) return;
+    
+    try {
+        const response = await fetch('https://www.cnb.cz/cs/financni-trhy/devizovy-trh/kurzy-devizoveho-trhu/kurzy-devizoveho-trhu/denni_kurz.txt');
+        const text = await response.text();
+        
+        const lines = text.split('\n');
+        const rates = { CZK: 1 };
+        
+        for (let i = 2; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            const parts = line.split('|');
+            if (parts.length >= 5) {
+                const currency = parts[3];
+                const amount = parseFloat(parts[2]);
+                const rate = parseFloat(parts[4].replace(',', '.'));
+                rates[currency] = rate / amount;
+            }
+        }
+        
+        state.exchangeRates = rates;
+        console.log('✅ Exchange rates updated');
+    } catch (error) {
+        console.log('Using fallback rates');
+    }
+}
+
+// === UI UPDATES ===
+
+function switchTab(tabName) {
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById(`${tabName}Tab`).classList.add('active');
+    
+    if (tabName === 'expenses') updateExpensesList();
+    if (tabName === 'balance') updateBalance();
+    if (tabName === 'stats') updateStatistics();
+    if (tabName === 'settings') updateCategoriesList();
+}
+
+function toggleTransactionType(type) {
+    document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`[data-type="${type}"]`).classList.add('active');
+    
+    if (type === 'expense') {
+        document.getElementById('expenseForm').classList.remove('hidden');
+        document.getElementById('incomeForm').classList.add('hidden');
+    } else {
+        document.getElementById('expenseForm').classList.add('hidden');
+        document.getElementById('incomeForm').classList.remove('hidden');
+    }
+}
+
+function updateExpensesList() {
+    const group = getCurrentGroup();
+    if (!group || !group.transactions) {
+        document.getElementById('expensesList').innerHTML = '<p class="empty-state">Žádné transakce</p>';
+        return;
+    }
+    
+    const list = document.getElementById('expensesList');
+    const filterType = document.getElementById('filterType').value;
+    const filterCategory = document.getElementById('filterCategory').value;
+    
+    let transactions = group.transactions.filter(t => {
+        if (filterType !== 'all' && t.type !== filterType) return false;
+        if (filterCategory !== 'all' && t.type === 'expense' && t.category !== filterCategory) return false;
+        return true;
+    });
+    
+    if (transactions.length === 0) {
+        list.innerHTML = '<p class="empty-state">Žádné transakce neodpovídají filtrům</p>';
+        return;
+    }
+    
+    transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    list.innerHTML = '';
+    transactions.forEach(t => {
+        const div = document.createElement('div');
+        div.className = `expense-item ${t.type}`;
+        
+        const date = new Date(t.date);
+        const dateStr = date.toLocaleDateString('cs-CZ', { 
+            day: 'numeric', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+        
+        const displayAmount = t.currency === 'CZK' 
+            ? `${t.amount.toLocaleString('cs-CZ')} Kč`
+            : `${t.amount.toLocaleString('cs-CZ')} ${t.currency} (${Math.round(t.amount_czk)} Kč)`;
+        
+        let meta = '';
+        if (t.type === 'expense') {
+            const member = group.members.find(m => m.email === t.paid_by);
+            meta = `${member ? member.name : t.paid_by} zaplatil • ${dateStr}`;
+        } else {
+            const member = group.members.find(m => m.email === t.recipient);
+            meta = `Příjem pro: ${member ? member.name : t.recipient} • ${dateStr}`;
+        }
+        
+        div.innerHTML = `
+            <div class="expense-header">
+                <div class="expense-description">
+                    ${t.type === 'expense' ? t.category : '💵'} - ${t.description}
+                </div>
+                <div class="expense-amount">${displayAmount}</div>
+            </div>
+            <div class="expense-meta">${meta}</div>
+            ${t.note ? `<div class="expense-note">${t.note}</div>` : ''}
+        `;
+        
+        list.appendChild(div);
+    });
+}
+
+function updateBalance() {
+    const group = getCurrentGroup();
+    if (!group || !group.transactions) return;
+    
+    const balances = {};
+    group.members.forEach(m => balances[m.email] = 0);
+    
+    group.transactions.forEach(t => {
+        if (t.type === 'expense') {
+            balances[t.paid_by] += t.amount_czk;
+            
+            const sharePerPerson = t.amount_czk / t.split_between.length;
+            t.split_between.forEach(split => {
+                if (balances[split.person] !== undefined) {
+                    balances[split.person] -= sharePerPerson;
+                }
+            });
+        } else if (t.type === 'income') {
+            balances[t.recipient] += t.amount_czk;
+        }
+    });
+    
+    const list = document.getElementById('balanceList');
+    list.innerHTML = '';
+    
+    Object.entries(balances).forEach(([email, balance]) => {
+        const member = group.members.find(m => m.email === email);
+        const div = document.createElement('div');
+        div.className = 'balance-item';
+        
+        const isPositive = balance > 0.01;
+        const isNegative = balance < -0.01;
+        
+        div.innerHTML = `
+            <div class="balance-name">${member ? member.name : email}</div>
+            <div class="balance-amount ${isPositive ? 'positive' : isNegative ? 'negative' : ''}">
+                ${isPositive ? '+' : ''}${Math.round(balance).toLocaleString('cs-CZ')} Kč
+            </div>
+        `;
+        
+        list.appendChild(div);
+    });
+}
+
+function updateStatistics() {
+    // Basic stats implementation
+    const group = getCurrentGroup();
+    if (!group || !group.transactions) return;
+    
+    const expenses = group.transactions.filter(t => t.type === 'expense');
+    const total = expenses.reduce((sum, t) => sum + t.amount_czk, 0);
+    const avg = expenses.length > 0 ? total / expenses.length : 0;
+    
+    document.getElementById('avgExpense').textContent = Math.round(avg).toLocaleString('cs-CZ') + ' Kč';
+    document.getElementById('expenseCount').textContent = expenses.length;
+}
+
+function updateAllViews() {
+    updateExpensesList();
+    updateBalance();
+    updateStatistics();
+}
+
+// === SYNC ===
+
+async function syncWithBackend() {
+    if (!state.scriptUrl) {
+        showToast('Nejprve nastav Script URL');
+        return;
+    }
+    
+    try {
+        await loadGroupsFromBackend();
+        showToast('✅ Synchronizováno');
+    } catch (error) {
+        console.error('Sync error:', error);
+        showToast('❌ Chyba synchronizace', 'error');
+    }
+}
+
+function saveScriptUrl() {
+    state.scriptUrl = document.getElementById('scriptUrl').value.trim();
+    localStorage.setItem('scriptUrl', state.scriptUrl);
+    showToast('✅ URL uloženo');
+}
+
+async function testScriptConnection() {
+    if (!state.scriptUrl) {
+        alert('Vlož Script URL');
+        return;
+    }
+    
+    try {
+        const response = await fetch(state.scriptUrl);
+        const data = await response.json();
+        showToast('✅ ' + data.message, 'success');
+    } catch (error) {
+        showToast('❌ Chyba připojení', 'error');
+    }
+}
+
+// === TOAST ===
+
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    const text = document.getElementById('toastText');
+    
+    toast.className = `toast ${type}`;
+    text.textContent = message;
+    toast.classList.remove('hidden');
+    
+    setTimeout(() => toast.classList.add('hidden'), 3000);
+}
+
+// Initialize when auth is ready
+console.log('✅ App script loaded');
+
