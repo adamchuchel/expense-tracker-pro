@@ -1,50 +1,90 @@
-const CACHE_NAME = 'expense-tracker-v1';
+const CACHE_NAME = 'expense-tracker-v4-offline';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/app.js',
-  '/manifest.json'
+    './',
+    './index.html',
+    './styles.css',
+    './app.js',
+    './auth.js',
+    './db.js',
+    './offline.js',
+    './manifest.json',
+    './icon-192.png',
+    './icon-512.png'
 ];
 
-// Install service worker
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
-      })
-  );
+// Install Service Worker
+self.addEventListener('install', event => {
+    console.log('🔧 Service Worker installing...');
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => {
+                console.log('📦 Caching app shell');
+                return cache.addAll(urlsToCache);
+            })
+            .then(() => self.skipWaiting())
+    );
 });
 
-// Fetch from cache
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      }
-    )
-  );
+// Activate Service Worker
+self.addEventListener('activate', event => {
+    console.log('✅ Service Worker activated');
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cacheName => {
+                    if (cacheName !== CACHE_NAME) {
+                        console.log('🗑️ Deleting old cache:', cacheName);
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        }).then(() => self.clients.claim())
+    );
 });
 
-// Update service worker
-self.addEventListener('activate', (event) => {
-  const cacheWhitelist = [CACHE_NAME];
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
+// Fetch Strategy: Network First, fallback to Cache
+self.addEventListener('fetch', event => {
+    const url = new URL(event.request.url);
+    
+    // Skip non-GET requests
+    if (event.request.method !== 'GET') {
+        return;
+    }
+    
+    // Skip external API calls
+    if (url.origin !== location.origin && 
+        !url.hostname.includes('cdn.') && 
+        !url.hostname.includes('cdnjs.') &&
+        !url.hostname.includes('googleapis.com')) {
+        return;
+    }
+    
+    event.respondWith(
+        fetch(event.request)
+            .then(response => {
+                const responseToCache = response.clone();
+                
+                if (response.status === 200) {
+                    caches.open(CACHE_NAME).then(cache => {
+                        cache.put(event.request, responseToCache);
+                    });
+                }
+                
+                return response;
+            })
+            .catch(() => {
+                return caches.match(event.request)
+                    .then(response => {
+                        if (response) {
+                            return response;
+                        }
+                        
+                        if (event.request.destination === 'document') {
+                            return caches.match('./index.html');
+                        }
+                    });
+            })
+    );
 });
+
+console.log('✅ Service Worker loaded');

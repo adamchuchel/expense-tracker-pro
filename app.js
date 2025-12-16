@@ -36,16 +36,31 @@ async function initializeApp() {
     // Fetch exchange rates
     fetchExchangeRates();
     
-    // Load data from backend
+    // Load data from backend OR local
     if (state.scriptUrl) {
-        await loadOrganizationData();
-        await loadGroupsFromBackend();
-        await loadInvitations();
+        if (isOnlineGlobal) {
+            // Online: try backend, fallback to local
+            try {
+                await loadOrganizationData();
+                await loadGroupsFromBackend();
+                await loadInvitations();
+            } catch (error) {
+                console.error('Backend load failed, using local:', error);
+                await loadFromLocal();
+            }
+        } else {
+            // Offline: load from local
+            console.log('⚠️ Offline mode - loading from local');
+            await loadFromLocal();
+            updateAllViews();
+            showToast('⚠️ Offline režim', 'warning');
+        }
     }
     
     // Initialize UI
     updateCategorySelects();
     setDateTimeInputs(new Date());
+    await updateUnsyncedCount();
     
     console.log('✅ FAMILY app initialized');
 }
@@ -178,6 +193,9 @@ async function loadGroupsFromBackend() {
         
         state.groups = data.groups;
         
+        // Save to local storage
+        await saveGroupsLocal(data.groups);
+        
         if (state.groups.length > 0 && !state.currentGroupId) {
             state.currentGroupId = state.groups[0].group_id;
         }
@@ -203,6 +221,9 @@ async function loadCurrentGroupData() {
         });
         
         currentGroup.transactions = data.transactions;
+        
+        // Save to local storage
+        await saveTransactionsLocal(currentGroup.group_id, data.transactions);
         
         updateMemberSelects();
         updateAllViews();
@@ -521,18 +542,31 @@ async function addExpense(e) {
     try {
         if (isEditing) {
             // Delete old, add new (simpler than update API)
-            await apiCall('delete_transaction', {
-                transaction_id: isEditing,
-                user_email: user.email
-            });
+            if (isOnlineGlobal) {
+                await apiCall('delete_transaction', {
+                    transaction_id: isEditing,
+                    user_email: user.email
+                });
+            } else {
+                await deleteTransactionLocal(isEditing);
+            }
         }
         
-        await apiCall('add_transaction', {
-            transaction,
-            user_email: user.email
-        });
-        
-        await loadCurrentGroupData();
+        if (isOnlineGlobal) {
+            // Online: send to backend
+            await apiCall('add_transaction', {
+                transaction,
+                user_email: user.email
+            });
+            
+            await loadCurrentGroupData();
+        } else {
+            // Offline: save locally
+            await addTransactionOffline(transaction, user.email);
+            updateAllViews();
+            await updateUnsyncedCount();
+            showToast('⚠️ Uloženo lokálně - synchronizuje se při připojení', 'warning');
+        }
         
         document.getElementById('expenseForm').reset();
         delete e.target.dataset.editingId;
@@ -543,7 +577,10 @@ async function addExpense(e) {
         submitBtn.textContent = 'Přidat výdaj';
         
         switchTab('expenses');
-        showToast(isEditing ? '✅ Výdaj upraven' : '✅ Výdaj přidán');
+        
+        if (isOnlineGlobal) {
+            showToast(isEditing ? '✅ Výdaj upraven' : '✅ Výdaj přidán');
+        }
         
     } catch (error) {
         console.error('Add/edit expense error:', error);
@@ -601,25 +638,42 @@ async function addIncome(e) {
     try {
         if (isEditing) {
             // Delete old, add new
-            await apiCall('delete_transaction', {
-                transaction_id: isEditing,
-                user_email: user.email
-            });
+            if (isOnlineGlobal) {
+                await apiCall('delete_transaction', {
+                    transaction_id: isEditing,
+                    user_email: user.email
+                });
+            } else {
+                await deleteTransactionLocal(isEditing);
+            }
         }
         
-        await apiCall('add_transaction', {
-            transaction,
-            user_email: user.email
-        });
-        
-        await loadCurrentGroupData();
+        if (isOnlineGlobal) {
+            // Online: send to backend
+            await apiCall('add_transaction', {
+                transaction,
+                user_email: user.email
+            });
+            
+            await loadCurrentGroupData();
+        } else {
+            // Offline: save locally
+            transaction.recipient = recipient; // For income
+            await addTransactionOffline(transaction, user.email);
+            updateAllViews();
+            await updateUnsyncedCount();
+            showToast('⚠️ Uloženo lokálně - synchronizuje se při připojení', 'warning');
+        }
         
         document.getElementById('incomeForm').reset();
         delete e.target.dataset.editingId;
         setDateTimeInputs(new Date());
         
         switchTab('expenses');
-        showToast(isEditing ? '✅ Příjem upraven' : '✅ Příjem přidán');
+        
+        if (isOnlineGlobal) {
+            showToast(isEditing ? '✅ Příjem upraven' : '✅ Příjem přidán');
+        }
         
     } catch (error) {
         console.error('Add/edit income error:', error);
@@ -889,13 +943,12 @@ async function syncWithBackend() {
         return;
     }
     
-    try {
-        await loadGroupsFromBackend();
-        showToast('✅ Synchronizováno');
-    } catch (error) {
-        console.error('Sync error:', error);
-        showToast('❌ Chyba synchronizace', 'error');
+    if (!isOnlineGlobal) {
+        showToast('⚠️ Offline - nelze synchronizovat', 'warning');
+        return;
     }
+    
+    await syncAllData();
 }
 
 function saveScriptUrl() {
