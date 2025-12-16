@@ -41,44 +41,129 @@
     <!-- Main App (shown when authenticated) -->
     <div id="mainApp" class="app hidden">
         
-        <!-- Fixed Header -->
-        <header class="header">
-            <div class="header-content">
-                <div class="header-left">
-                    <h1>💎 Výdaje</h1>
-                    <div class="group-selector" id="groupSelector">
-                        <button class="current-group" id="currentGroup">
-                            <span id="currentGroupName">Výchozí skupina</span>
-                            <span class="dropdown-icon">▼</span>
-                        </button>
-                        <div class="group-dropdown hidden" id="groupDropdown">
-                            <div class="group-list" id="groupList"></div>
-                            <button class="add-group-btn" id="addGroupBtn">+ Nová skupina</button>
+        <!-- Sidebar Menu -->
+        <div id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <div id="sidebarUserInfo" class="sidebar-user">
+                    <div class="sidebar-avatar"></div>
+                    <div class="sidebar-user-details">
+                        <div class="sidebar-user-name">User</div>
+                        <div class="sidebar-user-email">email@example.com</div>
+                    </div>
+                </div>
+                <button id="closeSidebar" class="close-sidebar">✕</button>
+            </div>
+            
+            <div class="sidebar-content">
+                <button class="sidebar-item" data-action="myProfile">
+                    <span class="sidebar-icon">👤</span>
+                    <span>Můj profil</span>
+                </button>
+                
+                <button class="sidebar-item" data-action="myGroups">
+                    <span class="sidebar-icon">👥</span>
+                    <span>Moje skupiny</span>
+                </button>
+                
+                <button class="sidebar-item" data-action="createGroup">
+                    <span class="sidebar-icon">➕</span>
+                    <span>Vytvořit skupinu</span>
+                </button>
+                
+                <button class="sidebar-item" data-action="joinQR">
+                    <span class="sidebar-icon">📱</span>
+                    <span>Připojit QR kódem</span>
+                </button>
+                
+                <div class="sidebar-divider"></div>
+                
+                <button class="sidebar-item" data-action="premium">
+                    <span class="sidebar-icon">⭐</span>
+                    <span>Získejte Premium</span>
+                </button>
+                
+                <button class="sidebar-item" data-action="feedback">
+                    <span class="sidebar-icon">💬</span>
+                    <span>Poslat zpětnou vazbu</span>
+                </button>
+                
+                <button class="sidebar-item" data-action="tips">
+                    <span class="sidebar-icon">💡</span>
+                    <span>Tipy</span>
+                </button>
+                
+                <button class="sidebar-item" data-action="about">
+                    <span class="sidebar-icon">ℹ️</span>
+                    <span>O aplikaci</span>
+                </button>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="sidebar-org">
+                    <div class="sidebar-org-icon">🏢</div>
+                    <div class="sidebar-org-info">
+                        <div class="sidebar-org-name">FAMILY</div>
+                        <div id="sidebarOrgMembers" class="sidebar-org-members">0 členů</div>
+                    </div>
+                </div>
+                <button class="sidebar-item" id="sidebarLogout" style="margin-top: 0.5rem;">
+                    <span class="sidebar-icon">🚪</span>
+                    <span>Odhlásit se</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="sidebarOverlay" class="sidebar-overlay hidden"></div>
+
+        <!-- New Header with Profile Button -->
+        <header class="header-new">
+            <div class="header-main">
+                <button id="openSidebar" class="profile-btn">
+                    <div id="headerAvatar" class="header-avatar"></div>
+                </button>
+                
+                <div class="header-groups-swipe">
+                    <div id="groupsSwiper" class="groups-swiper">
+                        <div class="group-card active">
+                            <div class="group-card-name">Načítám...</div>
+                            <div class="group-card-meta">0 členů</div>
                         </div>
                     </div>
                 </div>
-                <div class="header-center">
-                    <div id="onlineStatus" class="online-status online">🌐 Online</div>
-                    <div id="unsyncedBadge" class="unsynced-badge hidden">0 neodeslané</div>
-                </div>
-                <div class="header-right">
-                    <button id="syncBtn" class="sync-btn" title="Synchronizovat">
-                        <span class="sync-icon">⟳</span>
-                    </button>
-                    <button id="logoutBtn" class="logout-btn" title="Odhlásit se">
-                        <span>👤</span>
-                    </button>
+                
+                <div class="header-actions">
+                    <div id="onlineStatus" class="online-status online">🌐</div>
+                    <div id="unsyncedBadge" class="unsynced-badge hidden">0</div>
+                    <button id="syncBtn" class="sync-btn-new">⟳</button>
                 </div>
             </div>
         </header>
+
+        <!-- Horizontal Tabs Navigation -->
+        <div class="tabs-nav">
+            <button class="tab-nav-btn active" data-tab="expenses">📋 Výdaje</button>
+            <button class="tab-nav-btn" data-tab="balance">💰 Bilance</button>
+            <button class="tab-nav-btn" data-tab="stats">📊 Statistiky</button>
+            <button class="tab-nav-btn" data-tab="invitations">📬 Pozvánky</button>
+            <button class="tab-nav-btn" data-tab="settings">⚙️ Nastavení</button>
+        </div>
+
+        <!-- Floating Action Button -->
+        <button class="fab" id="fabBtn" title="Přidat výdaj">➕</button>
+        
+        <!-- Hidden old group selector for compatibility -->
+        <div style="display:none;">
+            <button id="addGroupBtn"></button>
+            <div id="groupList"></div>
+        </div>
 
         <!-- Toast Notifications (z-index 9999) -->
         <div id="toast" class="toast hidden">
             <span id="toastText"></span>
         </div>
 
-        <!-- Fixed Bottom Navigation -->
-        <nav class="bottom-nav">
+        <!-- Fixed Bottom Navigation (HIDDEN - using tabs now) -->
+        <nav class="bottom-nav" style="display: none;">
             <button class="nav-btn active" data-tab="add">
                 <span class="nav-icon">➕</span>
                 <span class="nav-label">Přidat</span>
