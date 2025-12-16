@@ -375,8 +375,10 @@ function updateSplitBetween(mode = 'equal', autoSelectCurrentUser = false) {
                     <div class="split-avatar" style="${avatarStyle}">
                         ${member.picture ? '' : initial}
                     </div>
-                    <span class="split-name">${member.name}</span>
-                    ${isCurrentUser ? '<span class="split-badge">Ty</span>' : ''}
+                    <div class="split-info">
+                        <span class="split-name">${member.name}</span>
+                        ${isCurrentUser ? '<span class="split-badge">Ty</span>' : ''}
+                    </div>
                 </label>
             `;
         } else {
@@ -386,10 +388,15 @@ function updateSplitBetween(mode = 'equal', autoSelectCurrentUser = false) {
                     <div class="split-avatar" style="${avatarStyle}">
                         ${member.picture ? '' : initial}
                     </div>
-                    <span class="split-name">${member.name}</span>
-                    ${isCurrentUser ? '<span class="split-badge">Ty</span>' : ''}
+                    <div class="split-info">
+                        <span class="split-name">${member.name}</span>
+                        ${isCurrentUser ? '<span class="split-badge">Ty</span>' : ''}
+                    </div>
                 </label>
-                <input type="number" id="amount-${member.email}" placeholder="Částka" pattern="[0-9]*" inputmode="numeric" min="0" class="split-amount-input">
+                <div class="split-amount-wrapper">
+                    <input type="number" id="amount-${member.email}" placeholder="0" pattern="[0-9]*" inputmode="numeric" min="0" class="split-amount-input">
+                    <span class="split-currency">Kč</span>
+                </div>
             `;
         }
         
@@ -990,14 +997,16 @@ function showToast(message, type = 'success') {
 async function loadOrganizationData() {
     try {
         const data = await apiCall('get_organization', {});
-        state.organizationMembers = data.members;
+        state.organizationMembers = data.members || [];
         
+        const count = state.organizationMembers.length;
         document.getElementById('orgMembersCount').textContent = 
-            `${data.members.length} členů`;
+            `${count} ${count === 1 ? 'člen' : count < 5 ? 'členové' : 'členů'}`;
         
-        console.log('✅ Organization loaded:', data.name);
+        console.log('✅ Organization loaded:', data.name, '-', count, 'members');
     } catch (error) {
         console.error('Load organization error:', error);
+        document.getElementById('orgMembersCount').textContent = '0 členů';
     }
 }
 
@@ -1461,4 +1470,3 @@ async function editTransaction(transactionId) {
 
 // Initialize when auth is ready
 console.log('✅ FAMILY App script loaded');
-
