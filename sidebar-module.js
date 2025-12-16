@@ -119,18 +119,20 @@ function initSidebar() {
             const tab = item.dataset.tab;
             console.log('🔄 Switching to tab:', tab);
             
-            // Remove active from all
+            // Update sidebar active states
             navItems.forEach(i => i.classList.remove('active'));
-            // Add active to clicked
             item.classList.add('active');
             
+            // Close sidebar
             closeSidebar();
             
+            // Switch tab after sidebar closes
             setTimeout(() => {
                 if (window.switchTab) {
+                    console.log('✅ Calling switchTab:', tab);
                     window.switchTab(tab);
                 } else {
-                    console.warn('⚠️ switchTab function not found');
+                    console.error('❌ switchTab function not found!');
                 }
             }, 300);
         });
