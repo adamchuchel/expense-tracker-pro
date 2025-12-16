@@ -1470,3 +1470,239 @@ async function editTransaction(transactionId) {
 
 // Initialize when auth is ready
 console.log('✅ FAMILY App script loaded');
+<<<<<<< HEAD
+
+/* =====================================
+   SIDEBAR & SWIPE FUNCTIONALITY
+   PŘIDEJ NA KONEC app.js
+   ===================================== */
+
+// === SIDEBAR FUNCTIONS ===
+
+function initSidebar() {
+    const openBtn = document.getElementById('openSidebar');
+    const closeBtn = document.getElementById('closeSidebar');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const logoutBtn = document.getElementById('sidebarLogout');
+    
+    if (!openBtn || !sidebar) return;
+    
+    openBtn.addEventListener('click', () => {
+        sidebar.classList.add('open');
+        overlay.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    });
+    
+    const closeSidebar = () => {
+        sidebar.classList.remove('open');
+        overlay.classList.add('hidden');
+        document.body.style.overflow = '';
+    };
+    
+    closeBtn?.addEventListener('click', closeSidebar);
+    overlay?.addEventListener('click', closeSidebar);
+    
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            closeSidebar();
+            handleLogout();
+        });
+    }
+    
+    // Sidebar items
+    document.querySelectorAll('.sidebar-item[data-action]').forEach(item => {
+        item.addEventListener('click', (e) => {
+            const action = e.currentTarget.dataset.action;
+            handleSidebarAction(action);
+            closeSidebar();
+        });
+    });
+}
+
+function handleSidebarAction(action) {
+    switch(action) {
+        case 'myGroups':
+            switchTab('settings');
+            break;
+        case 'createGroup':
+            document.getElementById('addGroupBtn').click();
+            break;
+        case 'about':
+            showToast('💎 Expense Tracker v4.0 - FAMILY Edition');
+            break;
+        default:
+            showToast(`Funkce "${action}" připravujeme`);
+    }
+}
+
+function updateSidebarUser() {
+    const user = getCurrentUser();
+    if (!user) return;
+    
+    // Update sidebar avatar
+    const sidebarAvatar = document.querySelector('.sidebar-avatar');
+    if (sidebarAvatar && user.picture) {
+        sidebarAvatar.style.backgroundImage = `url(${user.picture})`;
+        sidebarAvatar.style.backgroundSize = 'cover';
+    }
+    
+    // Update sidebar user info
+    document.querySelector('.sidebar-user-name')?.textContent = user.name || 'User';
+    document.querySelector('.sidebar-user-email')?.textContent = user.email || '';
+    
+    // Update header avatar
+    const headerAvatar = document.getElementById('headerAvatar');
+    if (headerAvatar && user.picture) {
+        headerAvatar.style.backgroundImage = `url(${user.picture})`;
+        headerAvatar.style.backgroundSize = 'cover';
+    }
+    
+    // Update org members in sidebar
+    const count = state.organizationMembers?.length || 0;
+    const sidebarOrgMembers = document.getElementById('sidebarOrgMembers');
+    if (sidebarOrgMembers) {
+        sidebarOrgMembers.textContent = `${count} ${count === 1 ? 'člen' : count < 5 ? 'členové' : 'členů'}`;
+    }
+}
+
+// === SWIPE GROUPS FUNCTIONS ===
+
+function updateGroupsSwiper() {
+    const swiper = document.getElementById('groupsSwiper');
+    if (!swiper) return;
+    
+    swiper.innerHTML = '';
+    
+    state.groups.forEach(group => {
+        const card = document.createElement('div');
+        card.className = 'group-card';
+        if (group.group_id === state.currentGroupId) {
+            card.classList.add('active');
+        }
+        
+        const memberCount = group.members?.length || 0;
+        
+        card.innerHTML = `
+            <div class="group-card-name">${group.name}</div>
+            <div class="group-card-meta">${memberCount} členů</div>
+        `;
+        
+        card.addEventListener('click', () => {
+            state.currentGroupId = group.group_id;
+            updateGroupsSwiper();
+            loadCurrentGroupData();
+            showToast(`📍 ${group.name}`);
+        });
+        
+        swiper.appendChild(card);
+        
+        // Scroll active card into view
+        if (card.classList.contains('active')) {
+            setTimeout(() => {
+                card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            }, 100);
+        }
+    });
+    
+    // Add "Create group" card
+    const createCard = document.createElement('div');
+    createCard.className = 'group-card';
+    createCard.innerHTML = `
+        <div class="group-card-name">➕ Nová skupina</div>
+        <div class="group-card-meta">Vytvořit</div>
+    `;
+    createCard.addEventListener('click', () => {
+        document.getElementById('addGroupBtn')?.click();
+    });
+    swiper.appendChild(createCard);
+}
+
+// === FLOATING ACTION BUTTON ===
+
+function initFAB() {
+    // Create FAB if doesn't exist
+    if (!document.querySelector('.fab')) {
+        const fab = document.createElement('button');
+        fab.className = 'fab';
+        fab.innerHTML = '➕';
+        fab.title = 'Přidat výdaj';
+        fab.addEventListener('click', () => {
+            switchTab('add');
+        });
+        document.body.appendChild(fab);
+    }
+}
+
+// === TABS NAVIGATION ===
+
+function initTabsNav() {
+    // Create tabs nav if doesn't exist
+    if (document.querySelector('.tabs-nav')) return;
+    
+    const tabsNav = document.createElement('div');
+    tabsNav.className = 'tabs-nav';
+    tabsNav.innerHTML = `
+        <button class="tab-nav-btn" data-tab="expenses">📋 Výdaje</button>
+        <button class="tab-nav-btn" data-tab="balance">💰 Bilance</button>
+        <button class="tab-nav-btn" data-tab="stats">📊 Statistiky</button>
+        <button class="tab-nav-btn" data-tab="invitations">📬 Pozvánky</button>
+        <button class="tab-nav-btn" data-tab="settings">⚙️ Nastavení</button>
+    `;
+    
+    document.querySelector('.main-content')?.before(tabsNav);
+    
+    // Add event listeners
+    tabsNav.querySelectorAll('.tab-nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+            switchTab(tab);
+            
+            // Update active state
+            tabsNav.querySelectorAll('.tab-nav-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+}
+
+// === OVERRIDE switchTab TO WORK WITH NEW NAVIGATION ===
+
+const originalSwitchTab = window.switchTab;
+window.switchTab = function(tabName) {
+    // Call original function
+    if (originalSwitchTab) {
+        originalSwitchTab(tabName);
+    }
+    
+    // Update tabs nav active state
+    document.querySelectorAll('.tab-nav-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+};
+
+// === INITIALIZE ON LOAD ===
+
+document.addEventListener('DOMContentLoaded', () => {
+    initSidebar();
+    initFAB();
+    initTabsNav();
+});
+
+// Update when user logs in
+const originalInitializeApp = window.initializeApp;
+window.initializeApp = async function() {
+    await originalInitializeApp();
+    updateSidebarUser();
+    updateGroupsSwiper();
+};
+
+// Update when groups change
+const originalLoadGroupsFromBackend = window.loadGroupsFromBackend;
+window.loadGroupsFromBackend = async function() {
+    await originalLoadGroupsFromBackend();
+    updateGroupsSwiper();
+};
+
+console.log('✅ Sidebar & Swipe module loaded');
+=======
+>>>>>>> af6ed3d22f75f31d570890df980ce8d3f39a3f8d
