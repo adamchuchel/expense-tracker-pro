@@ -239,7 +239,9 @@ body {
     font-size: 0.85rem;
     min-height: var(--touch-min);
     width: 100%;
-    max-width: 200px;
+    max-width: 100%;
+    flex: 1;
+    min-width: 0;
 }
 
 #currentGroupName {
@@ -1733,6 +1735,86 @@ button:disabled,
         transition-duration: 0.01ms !important;
     }
 }
+<<<<<<< HEAD
+/* ===================================
+   STYLE FIXES - Přidej na konec styles.css
+   =================================== */
+
+/* Fix: Group name overflow */
+.current-group {
+    max-width: 100% !important;
+    flex: 1 !important;
+}
+
+#currentGroupName {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Fix: Header spacing */
+.header-left {
+    flex: 1 !important;
+    min-width: 0 !important;
+}
+
+.header h1 {
+    font-size: 1.35rem !important;
+}
+
+/* Fix: Navigation - more compact */
+.nav-btn {
+    font-size: 0.75rem !important;
+}
+
+.nav-icon {
+    font-size: 1.4rem !important;
+}
+
+/* Fix: Split items - more compact */
+.split-item {
+    padding: 0.75rem !important;
+    min-height: 54px !important;
+}
+
+.split-avatar {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 1rem !important;
+}
+
+.split-name {
+    font-size: 0.9rem !important;
+}
+
+/* Fix: Form labels - shorter */
+.form-group label,
+.form-section > label {
+    font-size: 0.85rem !important;
+}
+
+/* Fix: Organization display */
+.org-members {
+    font-size: 0.85rem !important;
+}
+
+/* Fix: Better mobile spacing */
+@media (max-width: 428px) {
+    .header h1 {
+        font-size: 1.2rem !important;
+    }
+    
+    .current-group {
+        font-size: 0.8rem !important;
+    }
+}
+
+@media (max-width: 375px) {
+    .header h1 {
+        display: none;
+    }
+}
+=======
+>>>>>>> af6ed3d22f75f31d570890df980ce8d3f39a3f8d
 /* =====================================
    SIDEBAR MENU STYLING
    ===================================== */
