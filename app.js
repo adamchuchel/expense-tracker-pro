@@ -22,13 +22,22 @@ let state = {
 
 let charts = { category: null, timeline: null };
 
+// === UTILITY FUNCTIONS ===
+
+function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
 // === INITIALIZATION ===
 
 async function initializeApp() {
     console.log('🚀 Initializing FAMILY app...');
     
     // Load script URL
-    document.getElementById('scriptUrl').value = state.scriptUrl;
+    const scriptUrlInput = document.getElementById('scriptUrl');
+    if (scriptUrlInput) {
+        scriptUrlInput.value = state.scriptUrl;
+    }
     
     // Setup event listeners
     setupEventListeners();
@@ -84,14 +93,21 @@ function setupEventListeners() {
     });
 
     // Forms
-    document.getElementById('expenseForm').addEventListener('submit', addExpense);
-    document.getElementById('incomeForm').addEventListener('submit', addIncome);
+    const expenseForm = document.getElementById('expenseForm');
+    const incomeForm = document.getElementById('incomeForm');
+    if (expenseForm) expenseForm.addEventListener('submit', addExpense);
+    if (incomeForm) incomeForm.addEventListener('submit', addIncome);
 
     // Currency updates
-    document.getElementById('expenseCurrency').addEventListener('change', updateExpenseCurrencyConversion);
-    document.getElementById('expenseAmount').addEventListener('input', updateExpenseCurrencyConversion);
-    document.getElementById('incomeCurrency').addEventListener('change', updateIncomeCurrencyConversion);
-    document.getElementById('incomeAmount').addEventListener('input', updateIncomeCurrencyConversion);
+    const expenseCurrency = document.getElementById('expenseCurrency');
+    const expenseAmount = document.getElementById('expenseAmount');
+    const incomeCurrency = document.getElementById('incomeCurrency');
+    const incomeAmount = document.getElementById('incomeAmount');
+    
+    if (expenseCurrency) expenseCurrency.addEventListener('change', updateExpenseCurrencyConversion);
+    if (expenseAmount) expenseAmount.addEventListener('input', updateExpenseCurrencyConversion);
+    if (incomeCurrency) incomeCurrency.addEventListener('change', updateIncomeCurrencyConversion);
+    if (incomeAmount) incomeAmount.addEventListener('input', updateIncomeCurrencyConversion);
 
     // Split mode
     document.querySelectorAll('.mode-btn').forEach(btn => {
@@ -99,29 +115,49 @@ function setupEventListeners() {
     });
 
     // Group management
-    document.getElementById('currentGroup').addEventListener('click', toggleGroupDropdown);
-    document.getElementById('addGroupBtn').addEventListener('click', showAddGroupModal);
-    document.getElementById('saveGroup').addEventListener('click', saveNewGroup);
-    document.getElementById('cancelGroup').addEventListener('click', hideGroupModal);
+    const currentGroup = document.getElementById('currentGroup');
+    const addGroupBtn = document.getElementById('addGroupBtn');
+    const saveGroup = document.getElementById('saveGroup');
+    const cancelGroup = document.getElementById('cancelGroup');
+    
+    if (currentGroup) currentGroup.addEventListener('click', toggleGroupDropdown);
+    if (addGroupBtn) addGroupBtn.addEventListener('click', showAddGroupModal);
+    if (saveGroup) saveGroup.addEventListener('click', saveNewGroup);
+    if (cancelGroup) cancelGroup.addEventListener('click', hideGroupModal);
 
     // Categories
-    document.getElementById('addCategory').addEventListener('click', addCategory);
+    const addCategory = document.getElementById('addCategory');
+    if (addCategory) addCategory.addEventListener('click', addCategoryHandler);
 
     // Settings
-    document.getElementById('saveScriptUrl').addEventListener('click', saveScriptUrl);
-    document.getElementById('testScript').addEventListener('click', testScriptConnection);
+    const saveScriptUrlBtn = document.getElementById('saveScriptUrl');
+    const testScriptBtn = document.getElementById('testScript');
+    const clearGroupDataBtn = document.getElementById('clearGroupData');
+    const clearAllDataBtn = document.getElementById('clearAllData');
+    
+    if (saveScriptUrlBtn) saveScriptUrlBtn.addEventListener('click', saveScriptUrl);
+    if (testScriptBtn) testScriptBtn.addEventListener('click', testScriptConnection);
+    if (clearGroupDataBtn) clearGroupDataBtn.addEventListener('click', clearGroupData);
+    if (clearAllDataBtn) clearAllDataBtn.addEventListener('click', clearAllDataHandler);
 
     // Sync
-    document.getElementById('syncBtn').addEventListener('click', syncWithBackend);
+    const syncBtn = document.getElementById('syncBtn');
+    if (syncBtn) syncBtn.addEventListener('click', syncWithBackend);
 
     // Logout
-    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-    document.getElementById('logoutBtnSettings').addEventListener('click', handleLogout);
+    const logoutBtn = document.getElementById('logoutBtn');
+    const logoutBtnSettings = document.getElementById('logoutBtnSettings');
+    if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+    if (logoutBtnSettings) logoutBtnSettings.addEventListener('click', handleLogout);
 
     // Filters
-    document.getElementById('filterType').addEventListener('change', updateExpensesList);
-    document.getElementById('filterCategory').addEventListener('change', updateExpensesList);
-    document.getElementById('statsTimeRange').addEventListener('change', updateStatistics);
+    const filterType = document.getElementById('filterType');
+    const filterCategory = document.getElementById('filterCategory');
+    const statsTimeRange = document.getElementById('statsTimeRange');
+    
+    if (filterType) filterType.addEventListener('change', updateExpensesList);
+    if (filterCategory) filterCategory.addEventListener('change', updateExpensesList);
+    if (statsTimeRange) statsTimeRange.addEventListener('change', updateStatistics);
 
     // Online/offline
     window.addEventListener('online', () => {
@@ -138,8 +174,10 @@ function setupEventListeners() {
     // Click outside dropdown
     document.addEventListener('click', e => {
         if (!e.target.closest('.group-selector')) {
-            document.getElementById('groupDropdown')?.classList.add('hidden');
-            document.getElementById('currentGroup')?.classList.remove('active');
+            const dropdown = document.getElementById('groupDropdown');
+            const button = document.getElementById('currentGroup');
+            if (dropdown) dropdown.classList.add('hidden');
+            if (button) button.classList.remove('active');
         }
     });
 }
@@ -148,10 +186,15 @@ function setDateTimeInputs(date) {
     const dateStr = date.toISOString().split('T')[0];
     const timeStr = date.toTimeString().slice(0, 5);
     
-    document.getElementById('expenseDate').value = dateStr;
-    document.getElementById('expenseTime').value = timeStr;
-    document.getElementById('incomeDate').value = dateStr;
-    document.getElementById('incomeTime').value = timeStr;
+    const expenseDate = document.getElementById('expenseDate');
+    const expenseTime = document.getElementById('expenseTime');
+    const incomeDate = document.getElementById('incomeDate');
+    const incomeTime = document.getElementById('incomeTime');
+    
+    if (expenseDate) expenseDate.value = dateStr;
+    if (expenseTime) expenseTime.value = timeStr;
+    if (incomeDate) incomeDate.value = dateStr;
+    if (incomeTime) incomeTime.value = timeStr;
 }
 
 // === LOGOUT HANDLER ===
@@ -164,7 +207,7 @@ function handleLogout() {
     }
 }
 
-// === TAB SWITCHING - EXPORT GLOBALLY ===
+// === TAB SWITCHING ===
 
 function switchTab(tabName) {
     console.log('🔄 Switching to tab:', tabName);
@@ -300,9 +343,14 @@ function updateGroupSelector() {
     const currentGroup = getCurrentGroup();
     if (!currentGroup) return;
     
-    document.getElementById('currentGroupName').textContent = currentGroup.name;
+    const currentGroupName = document.getElementById('currentGroupName');
+    if (currentGroupName) {
+        currentGroupName.textContent = currentGroup.name;
+    }
     
     const groupList = document.getElementById('groupList');
+    if (!groupList) return;
+    
     groupList.innerHTML = '';
     
     state.groups.forEach(group => {
@@ -330,22 +378,29 @@ function updateGroupSelector() {
 function toggleGroupDropdown() {
     const dropdown = document.getElementById('groupDropdown');
     const button = document.getElementById('currentGroup');
-    dropdown.classList.toggle('hidden');
-    button.classList.toggle('active');
+    if (dropdown) dropdown.classList.toggle('hidden');
+    if (button) button.classList.toggle('active');
 }
 
 function showAddGroupModal() {
-    document.getElementById('groupModal').classList.remove('hidden');
-    document.getElementById('groupName').value = '';
-    document.getElementById('groupName').focus();
+    const modal = document.getElementById('groupModal');
+    const input = document.getElementById('groupName');
+    if (modal) modal.classList.remove('hidden');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
 }
 
 function hideGroupModal() {
-    document.getElementById('groupModal').classList.add('hidden');
+    const modal = document.getElementById('groupModal');
+    if (modal) modal.classList.add('hidden');
 }
 
 async function saveNewGroup() {
-    const name = document.getElementById('groupName').value.trim();
+    const input = document.getElementById('groupName');
+    const name = input ? input.value.trim() : '';
+    
     if (!name) {
         alert('Zadej název skupiny');
         return;
@@ -372,7 +427,6 @@ async function saveNewGroup() {
         showToast('❌ Chyba vytvoření skupiny', 'error');
     }
 }
-
 // === MEMBERS ===
 
 function updateMemberSelects() {
@@ -384,6 +438,8 @@ function updateMemberSelects() {
     
     selects.forEach(selectId => {
         const select = document.getElementById(selectId);
+        if (!select) return;
+        
         select.innerHTML = '';
         
         group.members.forEach(member => {
@@ -408,7 +464,7 @@ function updateSplitBetween(mode = 'equal', autoSelectCurrentUser = false) {
     const container = document.getElementById('expenseSplitBetween');
     const group = getCurrentGroup();
     const user = getCurrentUser();
-    if (!group || !group.members) return;
+    if (!container || !group || !group.members) return;
     
     container.innerHTML = '';
     
@@ -470,8 +526,9 @@ function updateSplitBetween(mode = 'equal', autoSelectCurrentUser = false) {
 
 function toggleSplitMode(mode) {
     document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
-    updateSplitBetween(mode, false); // Don't auto-select when manually switching modes
+    const modeBtn = document.querySelector(`[data-mode="${mode}"]`);
+    if (modeBtn) modeBtn.classList.add('active');
+    updateSplitBetween(mode, false);
 }
 
 // === CATEGORIES ===
@@ -480,22 +537,31 @@ function updateCategorySelects() {
     const categorySelect = document.getElementById('expenseCategory');
     const filterCategory = document.getElementById('filterCategory');
     
-    categorySelect.innerHTML = '';
-    filterCategory.innerHTML = '<option value="all">Všechny kategorie</option>';
+    if (categorySelect) {
+        categorySelect.innerHTML = '';
+        state.categories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.name;
+            option.textContent = `${cat.icon} ${cat.name}`;
+            categorySelect.appendChild(option);
+        });
+    }
     
-    state.categories.forEach(cat => {
-        const option = document.createElement('option');
-        option.value = cat.name;
-        option.textContent = `${cat.icon} ${cat.name}`;
-        categorySelect.appendChild(option);
-        
-        const filterOption = option.cloneNode(true);
-        filterCategory.appendChild(filterOption);
-    });
+    if (filterCategory) {
+        filterCategory.innerHTML = '<option value="all">Všechny kategorie</option>';
+        state.categories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.name;
+            option.textContent = `${cat.icon} ${cat.name}`;
+            filterCategory.appendChild(option);
+        });
+    }
 }
 
 function updateCategoriesList() {
     const list = document.getElementById('categoriesList');
+    if (!list) return;
+    
     list.innerHTML = '';
     
     state.categories.forEach((cat, index) => {
@@ -508,6 +574,7 @@ function updateCategoriesList() {
         list.appendChild(div);
     });
     
+    // Attach event listeners
     document.querySelectorAll('.category-remove').forEach(btn => {
         btn.addEventListener('click', e => {
             const index = parseInt(e.target.dataset.index);
@@ -515,14 +582,20 @@ function updateCategoriesList() {
                 state.categories.splice(index, 1);
                 updateCategorySelects();
                 updateCategoriesList();
+                showToast('✅ Kategorie odebrána');
+            } else {
+                showToast('⚠️ Musí zůstat alespoň jedna kategorie', 'warning');
             }
         });
     });
 }
 
-function addCategory() {
-    const name = document.getElementById('newCategoryName').value.trim();
-    const icon = document.getElementById('newCategoryIcon').value.trim() || '📦';
+function addCategoryHandler() {
+    const nameInput = document.getElementById('newCategoryName');
+    const iconInput = document.getElementById('newCategoryIcon');
+    
+    const name = nameInput ? nameInput.value.trim() : '';
+    const icon = iconInput ? iconInput.value.trim() || '📦' : '📦';
     
     if (!name) {
         alert('Zadej název kategorie');
@@ -530,224 +603,13 @@ function addCategory() {
     }
     
     state.categories.push({ name, icon });
-    document.getElementById('newCategoryName').value = '';
-    document.getElementById('newCategoryIcon').value = '';
+    
+    if (nameInput) nameInput.value = '';
+    if (iconInput) iconInput.value = '';
     
     updateCategorySelects();
     updateCategoriesList();
     showToast('✅ Kategorie přidána');
-}
-
-// === TRANSACTIONS ===
-
-async function addExpense(e) {
-    e.preventDefault();
-    
-    const group = getCurrentGroup();
-    const user = getCurrentUser();
-    if (!group || !user) return;
-    
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    const originalText = submitBtn.textContent;
-    const isEditing = e.target.dataset.editingId;
-    
-    // Disable button and show loading
-    submitBtn.disabled = true;
-    submitBtn.textContent = isEditing ? '⏳ Ukládám...' : '⏳ Přidávám...';
-    
-    const description = document.getElementById('expenseDescription').value.trim();
-    const amount = parseInt(document.getElementById('expenseAmount').value);
-    const currency = document.getElementById('expenseCurrency').value;
-    const date = document.getElementById('expenseDate').value;
-    const time = document.getElementById('expenseTime').value;
-    const paidBy = document.getElementById('expensePaidBy').value;
-    const category = document.getElementById('expenseCategory').value;
-    const note = document.getElementById('expenseNote').value.trim();
-    
-    const mode = document.querySelector('.mode-btn.active').dataset.mode;
-    const splitBetween = [];
-    
-    if (mode === 'equal') {
-        const checkboxes = document.querySelectorAll('#expenseSplitBetween input[type="checkbox"]:checked');
-        checkboxes.forEach(cb => {
-            splitBetween.push({ person: cb.value, amount: null });
-        });
-    } else {
-        const checkboxes = document.querySelectorAll('#expenseSplitBetween input[type="checkbox"]:checked');
-        checkboxes.forEach(cb => {
-            const customAmount = parseInt(document.getElementById(`amount-${cb.value}`).value) || 0;
-            if (customAmount > 0) {
-                splitBetween.push({ person: cb.value, amount: customAmount });
-            }
-        });
-    }
-    
-    if (!description || !amount || !paidBy || splitBetween.length === 0) {
-        alert('Vyplň všechna pole');
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
-        return;
-    }
-    
-    const amountCZK = convertToCZK(amount, currency);
-    
-    const transaction = {
-        group_id: group.group_id,
-        type: 'expense',
-        description,
-        amount,
-        currency,
-        amount_czk: amountCZK,
-        paid_by: paidBy,
-        split_between: splitBetween,
-        category,
-        note,
-        date: `${date}T${time}`
-    };
-    
-    try {
-        if (isEditing) {
-            // Delete old, add new (simpler than update API)
-            if (isOnlineGlobal) {
-                await apiCall('delete_transaction', {
-                    transaction_id: isEditing,
-                    user_email: user.email
-                });
-            } else {
-                await deleteTransactionLocal(isEditing);
-            }
-        }
-        
-        if (isOnlineGlobal) {
-            // Online: send to backend
-            await apiCall('add_transaction', {
-                transaction,
-                user_email: user.email
-            });
-            
-            await loadCurrentGroupData();
-        } else {
-            // Offline: save locally
-            await addTransactionOffline(transaction, user.email);
-            updateAllViews();
-            await updateUnsyncedCount();
-            showToast('⚠️ Uloženo lokálně - synchronizuje se při připojení', 'warning');
-        }
-        
-        document.getElementById('expenseForm').reset();
-        delete e.target.dataset.editingId;
-        setDateTimeInputs(new Date());
-        updateSplitBetween('equal', true); // Auto-select current user
-        
-        // Reset button text
-        submitBtn.textContent = 'Přidat výdaj';
-        
-        switchTab('expenses');
-        
-        if (isOnlineGlobal) {
-            showToast(isEditing ? '✅ Výdaj upraven' : '✅ Výdaj přidán');
-        }
-        
-    } catch (error) {
-        console.error('Add/edit expense error:', error);
-        showToast('❌ Chyba', 'error');
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = isEditing ? '💾 Uložit změny' : 'Přidat výdaj';
-    }
-}
-
-async function addIncome(e) {
-    e.preventDefault();
-    
-    const group = getCurrentGroup();
-    const user = getCurrentUser();
-    if (!group || !user) return;
-    
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    const originalText = submitBtn.textContent;
-    const isEditing = e.target.dataset.editingId;
-    
-    // Disable button and show loading
-    submitBtn.disabled = true;
-    submitBtn.textContent = isEditing ? '⏳ Ukládám...' : '⏳ Přidávám...';
-    
-    const description = document.getElementById('incomeDescription').value.trim();
-    const amount = parseInt(document.getElementById('incomeAmount').value);
-    const currency = document.getElementById('incomeCurrency').value;
-    const date = document.getElementById('incomeDate').value;
-    const time = document.getElementById('incomeTime').value;
-    const recipient = document.getElementById('incomeRecipient').value;
-    const note = document.getElementById('incomeNote').value.trim();
-    
-    if (!description || !amount || !recipient) {
-        alert('Vyplň všechna pole');
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
-        return;
-    }
-    
-    const amountCZK = convertToCZK(amount, currency);
-    
-    const transaction = {
-        group_id: group.group_id,
-        type: 'income',
-        description,
-        amount,
-        currency,
-        amount_czk: amountCZK,
-        recipient,
-        note,
-        date: `${date}T${time}`
-    };
-    
-    try {
-        if (isEditing) {
-            // Delete old, add new
-            if (isOnlineGlobal) {
-                await apiCall('delete_transaction', {
-                    transaction_id: isEditing,
-                    user_email: user.email
-                });
-            } else {
-                await deleteTransactionLocal(isEditing);
-            }
-        }
-        
-        if (isOnlineGlobal) {
-            // Online: send to backend
-            await apiCall('add_transaction', {
-                transaction,
-                user_email: user.email
-            });
-            
-            await loadCurrentGroupData();
-        } else {
-            // Offline: save locally
-            transaction.recipient = recipient; // For income
-            await addTransactionOffline(transaction, user.email);
-            updateAllViews();
-            await updateUnsyncedCount();
-            showToast('⚠️ Uloženo lokálně - synchronizuje se při připojení', 'warning');
-        }
-        
-        document.getElementById('incomeForm').reset();
-        delete e.target.dataset.editingId;
-        setDateTimeInputs(new Date());
-        
-        switchTab('expenses');
-        
-        if (isOnlineGlobal) {
-            showToast(isEditing ? '✅ Příjem upraven' : '✅ Příjem přidán');
-        }
-        
-    } catch (error) {
-        console.error('Add/edit income error:', error);
-        showToast('❌ Chyba', 'error');
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = isEditing ? '💾 Uložit změny' : 'Přidat příjem';
-    }
 }
 
 // === CURRENCY ===
@@ -755,14 +617,19 @@ async function addIncome(e) {
 function convertToCZK(amount, currency) {
     if (currency === 'CZK') return amount;
     const rate = state.exchangeRates[currency] || 1;
-    return amount * rate;
+    return Math.round(amount * rate);
 }
 
 function updateExpenseCurrencyConversion() {
-    const amount = parseInt(document.getElementById('expenseAmount').value) || 0;
-    const currency = document.getElementById('expenseCurrency').value;
+    const amountInput = document.getElementById('expenseAmount');
+    const currencySelect = document.getElementById('expenseCurrency');
     const note = document.getElementById('expenseCurrencyNote');
     const conversion = document.getElementById('expenseCurrencyConversion');
+    
+    if (!amountInput || !currencySelect || !note || !conversion) return;
+    
+    const amount = parseInt(amountInput.value) || 0;
+    const currency = currencySelect.value;
     
     if (currency === 'CZK' || amount === 0) {
         note.classList.add('hidden');
@@ -771,15 +638,20 @@ function updateExpenseCurrencyConversion() {
     
     const czk = convertToCZK(amount, currency);
     const rate = state.exchangeRates[currency] || 0;
-    conversion.textContent = `≈ ${Math.round(czk).toLocaleString('cs-CZ')} Kč (kurz: ${rate.toFixed(2)} Kč/${currency})`;
+    conversion.textContent = `≈ ${czk.toLocaleString('cs-CZ')} Kč (kurz: ${rate.toFixed(2)} Kč/${currency})`;
     note.classList.remove('hidden');
 }
 
 function updateIncomeCurrencyConversion() {
-    const amount = parseInt(document.getElementById('incomeAmount').value) || 0;
-    const currency = document.getElementById('incomeCurrency').value;
+    const amountInput = document.getElementById('incomeAmount');
+    const currencySelect = document.getElementById('incomeCurrency');
     const note = document.getElementById('incomeCurrencyNote');
     const conversion = document.getElementById('incomeCurrencyConversion');
+    
+    if (!amountInput || !currencySelect || !note || !conversion) return;
+    
+    const amount = parseInt(amountInput.value) || 0;
+    const currency = currencySelect.value;
     
     if (currency === 'CZK' || amount === 0) {
         note.classList.add('hidden');
@@ -788,7 +660,7 @@ function updateIncomeCurrencyConversion() {
     
     const czk = convertToCZK(amount, currency);
     const rate = state.exchangeRates[currency] || 0;
-    conversion.textContent = `≈ ${Math.round(czk).toLocaleString('cs-CZ')} Kč (kurz: ${rate.toFixed(2)} Kč/${currency})`;
+    conversion.textContent = `≈ ${czk.toLocaleString('cs-CZ')} Kč (kurz: ${rate.toFixed(2)} Kč/${currency})`;
     note.classList.remove('hidden');
 }
 
@@ -796,18 +668,12 @@ async function fetchExchangeRates() {
     if (!state.isOnline) return;
     
     try {
-        // Use Exchange Rate API (free, no auth needed, no CORS issues)
         const response = await fetch('https://api.exchangerate-api.com/v4/latest/CZK');
         
-        if (!response.ok) {
-            throw new Error('Failed to fetch rates');
-        }
+        if (!response.ok) throw new Error('Failed to fetch rates');
         
         const data = await response.json();
         
-        // Convert from CZK base to rates per 1 unit of foreign currency
-        // API gives: 1 CZK = X foreign currency
-        // We need: 1 foreign currency = Y CZK
         const rates = {
             CZK: 1,
             EUR: 1 / data.rates.EUR,
@@ -818,70 +684,52 @@ async function fetchExchangeRates() {
         };
         
         state.exchangeRates = rates;
-        console.log('✅ Exchange rates updated from Exchange Rate API');
-        console.log('Rates:', rates);
+        console.log('✅ Exchange rates updated');
         
     } catch (error) {
         console.log('Using fallback rates:', error.message);
-        // Fallback rates (approximate)
-        state.exchangeRates = {
-            CZK: 1,
-            EUR: 25.0,
-            USD: 23.0,
-            GBP: 29.0,
-            THB: 0.65,
-            PLN: 5.8
-        };
     }
 }
 
 // === UI UPDATES ===
 
-// Export for sidebar access
-window.switchTab = function switchTab(tabName) {
-    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-    
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.getElementById(`${tabName}Tab`).classList.add('active');
-    
-    if (tabName === 'expenses') updateExpensesList();
-    if (tabName === 'balance') updateBalance();
-    if (tabName === 'stats') updateStatistics();
-    if (tabName === 'invitations') updateInvitationsList();
-    if (tabName === 'settings') {
-        updateCategoriesList();
-        updateGroupManagement();
-    }
-}
-
 function toggleTransactionType(type) {
     document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelector(`[data-type="${type}"]`).classList.add('active');
+    const typeBtn = document.querySelector(`[data-type="${type}"]`);
+    if (typeBtn) typeBtn.classList.add('active');
+    
+    const expenseForm = document.getElementById('expenseForm');
+    const incomeForm = document.getElementById('incomeForm');
     
     if (type === 'expense') {
-        document.getElementById('expenseForm').classList.remove('hidden');
-        document.getElementById('incomeForm').classList.add('hidden');
+        if (expenseForm) expenseForm.classList.remove('hidden');
+        if (incomeForm) incomeForm.classList.add('hidden');
     } else {
-        document.getElementById('expenseForm').classList.add('hidden');
-        document.getElementById('incomeForm').classList.remove('hidden');
+        if (expenseForm) expenseForm.classList.add('hidden');
+        if (incomeForm) incomeForm.classList.remove('hidden');
     }
 }
 
 function updateExpensesList() {
     const group = getCurrentGroup();
+    const list = document.getElementById('expensesList');
+    
+    if (!list) return;
+    
     if (!group || !group.transactions) {
-        document.getElementById('expensesList').innerHTML = '<p class="empty-state">Žádné transakce</p>';
+        list.innerHTML = '<p class="empty-state">Žádné transakce</p>';
         return;
     }
     
-    const list = document.getElementById('expensesList');
-    const filterType = document.getElementById('filterType').value;
-    const filterCategory = document.getElementById('filterCategory').value;
+    const filterType = document.getElementById('filterType');
+    const filterCategory = document.getElementById('filterCategory');
+    
+    const filterTypeValue = filterType ? filterType.value : 'all';
+    const filterCategoryValue = filterCategory ? filterCategory.value : 'all';
     
     let transactions = group.transactions.filter(t => {
-        if (filterType !== 'all' && t.type !== filterType) return false;
-        if (filterCategory !== 'all' && t.type === 'expense' && t.category !== filterCategory) return false;
+        if (filterTypeValue !== 'all' && t.type !== filterTypeValue) return false;
+        if (filterCategoryValue !== 'all' && t.type === 'expense' && t.category !== filterCategoryValue) return false;
         return true;
     });
     
@@ -926,16 +774,27 @@ function updateExpensesList() {
             <div class="expense-meta">${meta}</div>
             ${t.note ? `<div class="expense-note">${t.note}</div>` : ''}
             <div class="expense-actions">
-                <button class="btn-edit" onclick="editTransaction('${t.transaction_id}')">
+                <button class="btn-edit" data-transaction-id="${t.transaction_id}">
                     ✏️ Upravit
                 </button>
-                <button class="btn-delete" onclick="deleteTransaction('${t.transaction_id}')">
+                <button class="btn-delete" data-transaction-id="${t.transaction_id}">
                     🗑️ Smazat
                 </button>
             </div>
         `;
         
         list.appendChild(div);
+        
+        // Attach event listeners
+        const editBtn = div.querySelector('.btn-edit');
+        const deleteBtn = div.querySelector('.btn-delete');
+        
+        if (editBtn) {
+            editBtn.addEventListener('click', () => editTransaction(t.transaction_id));
+        }
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => deleteTransaction(t.transaction_id));
+        }
     });
 }
 
@@ -962,6 +821,8 @@ function updateBalance() {
     });
     
     const list = document.getElementById('balanceList');
+    if (!list) return;
+    
     list.innerHTML = '';
     
     Object.entries(balances).forEach(([email, balance]) => {
@@ -984,7 +845,6 @@ function updateBalance() {
 }
 
 function updateStatistics() {
-    // Basic stats implementation
     const group = getCurrentGroup();
     if (!group || !group.transactions) return;
     
@@ -992,8 +852,11 @@ function updateStatistics() {
     const total = expenses.reduce((sum, t) => sum + t.amount_czk, 0);
     const avg = expenses.length > 0 ? total / expenses.length : 0;
     
-    document.getElementById('avgExpense').textContent = Math.round(avg).toLocaleString('cs-CZ') + ' Kč';
-    document.getElementById('expenseCount').textContent = expenses.length;
+    const avgExpense = document.getElementById('avgExpense');
+    const expenseCount = document.getElementById('expenseCount');
+    
+    if (avgExpense) avgExpense.textContent = Math.round(avg).toLocaleString('cs-CZ') + ' Kč';
+    if (expenseCount) expenseCount.textContent = expenses.length;
 }
 
 function updateAllViews() {
@@ -1002,11 +865,11 @@ function updateAllViews() {
     updateStatistics();
 }
 
-// === SYNC ===
+// === SYNC & SETTINGS ===
 
 async function syncWithBackend() {
     if (!state.scriptUrl) {
-        showToast('Nejprve nastav Script URL');
+        showToast('Nejprve nastav Script URL', 'warning');
         return;
     }
     
@@ -1019,7 +882,10 @@ async function syncWithBackend() {
 }
 
 function saveScriptUrl() {
-    state.scriptUrl = document.getElementById('scriptUrl').value.trim();
+    const input = document.getElementById('scriptUrl');
+    if (!input) return;
+    
+    state.scriptUrl = input.value.trim();
     localStorage.setItem('scriptUrl', state.scriptUrl);
     showToast('✅ URL uloženo');
 }
@@ -1033,10 +899,34 @@ async function testScriptConnection() {
     try {
         const response = await fetch(state.scriptUrl);
         const data = await response.json();
-        showToast('✅ ' + data.message, 'success');
+        showToast('✅ ' + (data.message || 'Připojení OK'), 'success');
     } catch (error) {
         showToast('❌ Chyba připojení', 'error');
     }
+}
+
+function clearGroupData() {
+    if (!confirm('Opravdu smazat data této skupiny?')) return;
+    
+    const group = getCurrentGroup();
+    if (group) {
+        group.transactions = [];
+        updateAllViews();
+        showToast('✅ Data skupiny smazána');
+    }
+}
+
+function clearAllDataHandler() {
+    if (!confirm('Opravdu smazat VŠ ECHNA data?\n\nTato akce je NEVRATNÁ!')) return;
+    if (!confirm('Jsi si naprosto jistý?')) return;
+    
+    clearAllData().then(() => {
+        state.groups = [];
+        state.currentGroupId = null;
+        state.invitations = [];
+        showToast('✅ Všechna data smazána');
+        updateAllViews();
+    });
 }
 
 // === TOAST ===
@@ -1045,11 +935,340 @@ function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
     const text = document.getElementById('toastText');
     
+    if (!toast || !text) return;
+    
     toast.className = `toast ${type}`;
     text.textContent = message;
     toast.classList.remove('hidden');
     
     setTimeout(() => toast.classList.add('hidden'), 3000);
+}
+
+console.log('✅ FAMILY App script loaded (part 2/3)');
+// === TRANSACTIONS ===
+
+async function addExpense(e) {
+    e.preventDefault();
+    
+    const group = getCurrentGroup();
+    const user = getCurrentUser();
+    if (!group || !user) return;
+    
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (!submitBtn) return;
+    
+    const originalText = submitBtn.innerHTML;
+    const isEditing = e.target.dataset.editingId;
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = isEditing ? '⏳ Ukládám...' : '⏳ Přidávám...';
+    
+    const description = document.getElementById('expenseDescription').value.trim();
+    const amount = parseInt(document.getElementById('expenseAmount').value);
+    const currency = document.getElementById('expenseCurrency').value;
+    const date = document.getElementById('expenseDate').value;
+    const time = document.getElementById('expenseTime').value;
+    const paidBy = document.getElementById('expensePaidBy').value;
+    const category = document.getElementById('expenseCategory').value;
+    const note = document.getElementById('expenseNote').value.trim();
+    
+    const mode = document.querySelector('.mode-btn.active')?.dataset.mode || 'equal';
+    const splitBetween = [];
+    
+    if (mode === 'equal') {
+        const checkboxes = document.querySelectorAll('#expenseSplitBetween input[type="checkbox"]:checked');
+        checkboxes.forEach(cb => {
+            splitBetween.push({ person: cb.value, amount: null });
+        });
+    } else {
+        const checkboxes = document.querySelectorAll('#expenseSplitBetween input[type="checkbox"]:checked');
+        checkboxes.forEach(cb => {
+            const customAmount = parseInt(document.getElementById(`amount-${cb.value}`)?.value) || 0;
+            if (customAmount > 0) {
+                splitBetween.push({ person: cb.value, amount: customAmount });
+            }
+        });
+    }
+    
+    if (!description || !amount || !paidBy || splitBetween.length === 0) {
+        alert('Vyplň všechna pole');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+        return;
+    }
+    
+    const amountCZK = convertToCZK(amount, currency);
+    
+    const transaction = {
+        transaction_id: generateId(),
+        group_id: group.group_id,
+        type: 'expense',
+        description,
+        amount,
+        currency,
+        amount_czk: amountCZK,
+        paid_by: paidBy,
+        split_between: splitBetween,
+        category,
+        note,
+        date: `${date}T${time}`,
+        created_by: user.email,
+        created_at: new Date().toISOString()
+    };
+    
+    try {
+        if (isEditing) {
+            if (isOnlineGlobal) {
+                await apiCall('delete_transaction', {
+                    transaction_id: isEditing,
+                    user_email: user.email
+                });
+            } else {
+                await deleteTransactionLocal(isEditing);
+            }
+        }
+        
+        if (isOnlineGlobal) {
+            await apiCall('add_transaction', {
+                transaction: transaction,
+                user_email: user.email
+            });
+            await loadCurrentGroupData();
+        } else {
+            await addTransactionOffline(transaction, user.email);
+            updateAllViews();
+            await updateUnsyncedCount();
+            showToast('⚠️ Uloženo lokálně - synchronizuje se při připojení', 'warning');
+        }
+        
+        document.getElementById('expenseForm').reset();
+        delete e.target.dataset.editingId;
+        setDateTimeInputs(new Date());
+        updateSplitBetween('equal', true);
+        
+        submitBtn.innerHTML = '<span class="btn-icon">💸</span> Přidat výdaj';
+        
+        switchTab('expenses');
+        
+        if (isOnlineGlobal) {
+            showToast(isEditing ? '✅ Výdaj upraven' : '✅ Výdaj přidán');
+        }
+        
+    } catch (error) {
+        console.error('Add/edit expense error:', error);
+        showToast('❌ Chyba', 'error');
+    } finally {
+        submitBtn.disabled = false;
+    }
+}
+
+async function addIncome(e) {
+    e.preventDefault();
+    
+    const group = getCurrentGroup();
+    const user = getCurrentUser();
+    if (!group || !user) return;
+    
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (!submitBtn) return;
+    
+    const originalText = submitBtn.innerHTML;
+    const isEditing = e.target.dataset.editingId;
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = isEditing ? '⏳ Ukládám...' : '⏳ Přidávám...';
+    
+    const description = document.getElementById('incomeDescription').value.trim();
+    const amount = parseInt(document.getElementById('incomeAmount').value);
+    const currency = document.getElementById('incomeCurrency').value;
+    const date = document.getElementById('incomeDate').value;
+    const time = document.getElementById('incomeTime').value;
+    const recipient = document.getElementById('incomeRecipient').value;
+    const note = document.getElementById('incomeNote').value.trim();
+    
+    if (!description || !amount || !recipient) {
+        alert('Vyplň všechna pole');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+        return;
+    }
+    
+    const amountCZK = convertToCZK(amount, currency);
+    
+    const transaction = {
+        transaction_id: generateId(),
+        group_id: group.group_id,
+        type: 'income',
+        description,
+        amount,
+        currency,
+        amount_czk: amountCZK,
+        recipient,
+        note,
+        date: `${date}T${time}`,
+        created_by: user.email,
+        created_at: new Date().toISOString()
+    };
+    
+    try {
+        if (isEditing) {
+            if (isOnlineGlobal) {
+                await apiCall('delete_transaction', {
+                    transaction_id: isEditing,
+                    user_email: user.email
+                });
+            } else {
+                await deleteTransactionLocal(isEditing);
+            }
+        }
+        
+        if (isOnlineGlobal) {
+            await apiCall('add_transaction', {
+                transaction: transaction,
+                user_email: user.email
+            });
+            await loadCurrentGroupData();
+        } else {
+            await addTransactionOffline(transaction, user.email);
+            updateAllViews();
+            await updateUnsyncedCount();
+            showToast('⚠️ Uloženo lokálně - synchronizuje se při připojení', 'warning');
+        }
+        
+        document.getElementById('incomeForm').reset();
+        delete e.target.dataset.editingId;
+        setDateTimeInputs(new Date());
+        
+        submitBtn.innerHTML = '<span class="btn-icon">💵</span> Přidat příjem';
+        
+        switchTab('expenses');
+        
+        if (isOnlineGlobal) {
+            showToast(isEditing ? '✅ Příjem upraven' : '✅ Příjem přidán');
+        }
+        
+    } catch (error) {
+        console.error('Add/edit income error:', error);
+        showToast('❌ Chyba', 'error');
+    } finally {
+        submitBtn.disabled = false;
+    }
+}
+
+async function deleteTransaction(transactionId) {
+    const user = getCurrentUser();
+    const group = getCurrentGroup();
+    if (!user || !group) return;
+    
+    const transaction = group.transactions.find(t => t.transaction_id === transactionId);
+    if (!transaction) return;
+    
+    if (transaction.created_by !== user.email) {
+        alert('Můžeš smazat pouze své vlastní výdaje');
+        return;
+    }
+    
+    if (!confirm(`Opravdu smazat: ${transaction.description}?`)) return;
+    
+    try {
+        showToast('⏳ Mažu...', 'warning');
+        
+        await apiCall('delete_transaction', {
+            transaction_id: transactionId,
+            user_email: user.email
+        });
+        
+        await loadCurrentGroupData();
+        showToast('✅ Výdaj smazán');
+        
+    } catch (error) {
+        console.error('Delete transaction error:', error);
+        showToast('❌ ' + error.message, 'error');
+    }
+}
+
+async function editTransaction(transactionId) {
+    const group = getCurrentGroup();
+    const user = getCurrentUser();
+    if (!group || !user) return;
+    
+    const transaction = group.transactions.find(t => t.transaction_id === transactionId);
+    if (!transaction) return;
+    
+    if (transaction.created_by !== user.email) {
+        alert('Můžeš upravit pouze své vlastní výdaje');
+        return;
+    }
+    
+    switchTab('add');
+    
+    if (transaction.type === 'expense') {
+        const expenseTypeBtn = document.querySelector('[data-type="expense"]');
+        if (expenseTypeBtn) expenseTypeBtn.click();
+        
+        document.getElementById('expenseDescription').value = transaction.description;
+        document.getElementById('expenseAmount').value = transaction.amount;
+        document.getElementById('expenseCurrency').value = transaction.currency;
+        
+        const date = new Date(transaction.date);
+        document.getElementById('expenseDate').value = date.toISOString().split('T')[0];
+        document.getElementById('expenseTime').value = date.toTimeString().slice(0, 5);
+        
+        document.getElementById('expensePaidBy').value = transaction.paid_by;
+        document.getElementById('expenseCategory').value = transaction.category || '';
+        document.getElementById('expenseNote').value = transaction.note || '';
+        
+        if (transaction.split_between && transaction.split_between.length > 0) {
+            const hasCustomAmounts = transaction.split_between.some(s => s.amount !== null);
+            const mode = hasCustomAmounts ? 'custom' : 'equal';
+            
+            const modeBtn = document.querySelector(`[data-mode="${mode}"]`);
+            if (modeBtn) modeBtn.click();
+            
+            setTimeout(() => {
+                transaction.split_between.forEach(split => {
+                    const checkbox = document.getElementById(`split-${split.person}`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                        checkbox.closest('.split-item')?.classList.add('checked');
+                        
+                        if (split.amount !== null) {
+                            const amountInput = document.getElementById(`amount-${split.person}`);
+                            if (amountInput) amountInput.value = split.amount;
+                        }
+                    }
+                });
+            }, 100);
+        }
+        
+        document.getElementById('expenseForm').dataset.editingId = transactionId;
+        
+        const submitBtn = document.querySelector('#expenseForm button[type="submit"]');
+        if (submitBtn) submitBtn.innerHTML = '💾 Uložit změny';
+        
+        showToast('📝 Editace výdaje - uprav a ulož změny', 'warning');
+    } else {
+        const incomeTypeBtn = document.querySelector('[data-type="income"]');
+        if (incomeTypeBtn) incomeTypeBtn.click();
+        
+        document.getElementById('incomeDescription').value = transaction.description;
+        document.getElementById('incomeAmount').value = transaction.amount;
+        document.getElementById('incomeCurrency').value = transaction.currency;
+        
+        const date = new Date(transaction.date);
+        document.getElementById('incomeDate').value = date.toISOString().split('T')[0];
+        document.getElementById('incomeTime').value = date.toTimeString().slice(0, 5);
+        
+        document.getElementById('incomeRecipient').value = transaction.recipient || transaction.paid_by;
+        document.getElementById('incomeNote').value = transaction.note || '';
+        
+        document.getElementById('incomeForm').dataset.editingId = transactionId;
+        
+        const submitBtn = document.querySelector('#incomeForm button[type="submit"]');
+        if (submitBtn) submitBtn.innerHTML = '💾 Uložit změny';
+        
+        showToast('📝 Editace příjmu - uprav a ulož změny', 'warning');
+    }
 }
 
 // === ORGANIZATION ===
@@ -1060,13 +1279,18 @@ async function loadOrganizationData() {
         state.organizationMembers = data.members || [];
         
         const count = state.organizationMembers.length;
-        document.getElementById('orgMembersCount').textContent = 
-            `${count} ${count === 1 ? 'člen' : count < 5 ? 'členové' : 'členů'}`;
+        const label = count === 1 ? 'člen' : (count >= 2 && count <= 4) ? 'členové' : 'členů';
         
-        console.log('✅ Organization loaded:', data.name, '-', count, 'members');
+        const orgMembersCount = document.getElementById('orgMembersCount');
+        if (orgMembersCount) {
+            orgMembersCount.textContent = `${count} ${label}`;
+        }
+        
+        console.log('✅ Organization loaded:', data.name, '-', count, label);
     } catch (error) {
         console.error('Load organization error:', error);
-        document.getElementById('orgMembersCount').textContent = '0 členů';
+        const orgMembersCount = document.getElementById('orgMembersCount');
+        if (orgMembersCount) orgMembersCount.textContent = '0 členů';
     }
 }
 
@@ -1084,7 +1308,6 @@ async function loadInvitations() {
         state.invitations = data.invitations;
         updateInvitationsList();
         
-        // Show badge if has invitations
         if (data.invitations.length > 0) {
             showToast(`📬 Máš ${data.invitations.length} nových pozvánek!`, 'success');
         }
@@ -1096,6 +1319,7 @@ async function loadInvitations() {
 
 function updateInvitationsList() {
     const list = document.getElementById('invitationsList');
+    if (!list) return;
     
     if (state.invitations.length === 0) {
         list.innerHTML = '<p class="empty-state">Žádné čekající pozvánky</p>';
@@ -1122,28 +1346,33 @@ function updateInvitationsList() {
                 Pozvánka od: ${inv.invited_by_name}
             </div>
             <div class="invitation-actions">
-                <button class="btn-success" onclick="acceptInvitation('${inv.invitation_id}')">
+                <button class="btn-success" data-invitation-id="${inv.invitation_id}">
                     ✓ Přijmout
                 </button>
-                <button class="btn-secondary" onclick="declineInvitation('${inv.invitation_id}')">
+                <button class="btn-secondary" data-invitation-id="${inv.invitation_id}">
                     ✗ Odmítnout
                 </button>
             </div>
         `;
         
         list.appendChild(div);
+        
+        // Attach event listeners
+        const acceptBtn = div.querySelector('.btn-success');
+        const declineBtn = div.querySelector('.btn-secondary');
+        
+        if (acceptBtn) {
+            acceptBtn.addEventListener('click', () => acceptInvitation(inv.invitation_id));
+        }
+        if (declineBtn) {
+            declineBtn.addEventListener('click', () => declineInvitation(inv.invitation_id));
+        }
     });
 }
 
 async function acceptInvitation(invitationId) {
     const user = getCurrentUser();
     if (!user) return;
-    
-    // Find button and disable it immediately
-    const btn = event.target;
-    const originalText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '⏳ Přijímám...';
     
     try {
         const data = await apiCall('accept_invitation', {
@@ -1156,17 +1385,11 @@ async function acceptInvitation(invitationId) {
         await loadInvitations();
         
         showToast(`✅ Přijato! Vítej ve skupině ${data.group_name}`, 'success');
-        
-        // Switch to groups tab
         switchTab('expenses');
         
     } catch (error) {
         console.error('Accept invitation error:', error);
         showToast('❌ ' + error.message, 'error');
-        
-        // Re-enable button on error
-        btn.disabled = false;
-        btn.textContent = originalText;
     }
 }
 
@@ -1176,12 +1399,6 @@ async function declineInvitation(invitationId) {
     
     if (!confirm('Opravdu odmítnout pozvánku?')) return;
     
-    // Find button and disable it
-    const btn = event.target;
-    const originalText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '⏳ Odmítám...';
-    
     try {
         await apiCall('decline_invitation', {
             invitation_id: invitationId,
@@ -1189,15 +1406,11 @@ async function declineInvitation(invitationId) {
         });
         
         await loadInvitations();
-        
         showToast('Pozvánka odmítnuta', 'success');
         
     } catch (error) {
         console.error('Decline invitation error:', error);
         showToast('❌ Chyba při odmítnutí', 'error');
-        
-        btn.disabled = false;
-        btn.textContent = originalText;
     }
 }
 
@@ -1205,6 +1418,8 @@ async function declineInvitation(invitationId) {
 
 function updateGroupManagement() {
     const container = document.getElementById('currentGroupManagement');
+    if (!container) return;
+    
     const group = getCurrentGroup();
     
     if (!group) {
@@ -1240,7 +1455,7 @@ function updateGroupManagement() {
                     <div class="member-role">${member.role === 'owner' ? '👑 Vlastník' : '👤 Člen'}</div>
                 </div>
                 ${canRemove ? `
-                    <button class="btn-danger-small" onclick="removeMember('${member.email}')">
+                    <button class="btn-danger-small" data-member-email="${member.email}">
                         Odebrat
                     </button>
                 ` : ''}
@@ -1253,25 +1468,21 @@ function updateGroupManagement() {
         </div>
     `;
     
-    // Invite section
-    html += `
-        <div class="invite-section">
-            <h4>➕ Pozvat člena</h4>
-            <p class="help-text">Pozvi kohokoli z organizace FAMILY</p>
-            <div class="invite-form">
-                <input type="email" id="inviteEmail" placeholder="Email člena" class="invite-input">
-                <button onclick="inviteMember()" class="btn-primary">Poslat pozvánku</button>
-            </div>
-        </div>
-    `;
-    
-    // Delete group (only owner)
     if (isOwner) {
         html += `
+            <div class="invite-section">
+                <h4>➕ Pozvat člena</h4>
+                <p class="help-text">Pozvi kohokoli z organizace FAMILY</p>
+                <div class="invite-form">
+                    <input type="email" id="inviteEmail" placeholder="Email člena" class="invite-input">
+                    <button id="inviteMemberBtn" class="btn-primary">Poslat pozvánku</button>
+                </div>
+            </div>
+            
             <div class="danger-zone">
                 <h4>🗑️ Nebezpečná zóna</h4>
                 <p class="help-text">Smazání skupiny je nevratné!</p>
-                <button onclick="deleteCurrentGroup()" class="btn-danger">
+                <button id="deleteCurrentGroupBtn" class="btn-danger">
                     Smazat skupinu
                 </button>
             </div>
@@ -1279,10 +1490,25 @@ function updateGroupManagement() {
     }
     
     container.innerHTML = html;
+    
+    // Attach event listeners
+    const inviteBtn = document.getElementById('inviteMemberBtn');
+    if (inviteBtn) inviteBtn.addEventListener('click', inviteMember);
+    
+    const deleteGroupBtn = document.getElementById('deleteCurrentGroupBtn');
+    if (deleteGroupBtn) deleteGroupBtn.addEventListener('click', deleteCurrentGroup);
+    
+    document.querySelectorAll('.btn-danger-small').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const email = btn.dataset.memberEmail;
+            if (email) removeMember(email);
+        });
+    });
 }
 
 async function inviteMember() {
-    const email = document.getElementById('inviteEmail').value.trim();
+    const input = document.getElementById('inviteEmail');
+    const email = input ? input.value.trim() : '';
     
     if (!email) {
         alert('Zadej email');
@@ -1299,17 +1525,10 @@ async function inviteMember() {
     
     if (!group || !user) return;
     
-    // Check if already member
     if (group.members.some(m => m.email === email)) {
         alert('Tento člověk už je ve skupině');
         return;
     }
-    
-    // Find button and disable it
-    const btn = event.target;
-    const originalText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '⏳ Odesílám...';
     
     try {
         await apiCall('invite_member', {
@@ -1319,15 +1538,12 @@ async function inviteMember() {
             invited_by_name: user.name
         });
         
-        document.getElementById('inviteEmail').value = '';
+        if (input) input.value = '';
         showToast(`✅ Pozvánka odeslána na ${email}`, 'success');
         
     } catch (error) {
         console.error('Invite error:', error);
         showToast('❌ ' + error.message, 'error');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = originalText;
     }
 }
 
@@ -1387,7 +1603,6 @@ async function deleteCurrentGroup() {
         });
         
         await loadGroupsFromBackend();
-        
         showToast('✅ Skupina smazána', 'success');
         
     } catch (error) {
@@ -1396,417 +1611,4 @@ async function deleteCurrentGroup() {
     }
 }
 
-// === TRANSACTION MANAGEMENT ===
-
-async function deleteTransaction(transactionId) {
-    const user = getCurrentUser();
-    const group = getCurrentGroup();
-    if (!user || !group) return;
-    
-    const transaction = group.transactions.find(t => t.transaction_id === transactionId);
-    if (!transaction) return;
-    
-    // Check if user created this transaction
-    if (transaction.created_by !== user.email) {
-        alert('Můžeš smazat pouze své vlastní výdaje');
-        return;
-    }
-    
-    if (!confirm(`Opravdu smazat: ${transaction.description}?`)) return;
-    
-    try {
-        showToast('⏳ Mažu...', 'warning');
-        
-        await apiCall('delete_transaction', {
-            transaction_id: transactionId,
-            user_email: user.email
-        });
-        
-        await loadCurrentGroupData();
-        
-        showToast('✅ Výdaj smazán');
-        
-    } catch (error) {
-        console.error('Delete transaction error:', error);
-        showToast('❌ ' + error.message, 'error');
-    }
-}
-
-async function editTransaction(transactionId) {
-    const group = getCurrentGroup();
-    const user = getCurrentUser();
-    if (!group || !user) return;
-    
-    const transaction = group.transactions.find(t => t.transaction_id === transactionId);
-    if (!transaction) return;
-    
-    // Check if user created this transaction
-    if (transaction.created_by !== user.email) {
-        alert('Můžeš upravit pouze své vlastní výdaje');
-        return;
-    }
-    
-    // Switch to add tab
-    switchTab('add');
-    
-    if (transaction.type === 'expense') {
-        // Show expense form
-        document.querySelector('[data-type="expense"]').click();
-        
-        // Fill form
-        document.getElementById('expenseDescription').value = transaction.description;
-        document.getElementById('expenseAmount').value = transaction.amount;
-        document.getElementById('expenseCurrency').value = transaction.currency;
-        
-        const date = new Date(transaction.date);
-        document.getElementById('expenseDate').value = date.toISOString().split('T')[0];
-        document.getElementById('expenseTime').value = date.toTimeString().slice(0, 5);
-        
-        document.getElementById('expensePaidBy').value = transaction.paid_by;
-        document.getElementById('expenseCategory').value = transaction.category || '';
-        document.getElementById('expenseNote').value = transaction.note || '';
-        
-        // Set split mode
-        if (transaction.split_between && transaction.split_between.length > 0) {
-            const hasCustomAmounts = transaction.split_between.some(s => s.amount !== null);
-            const mode = hasCustomAmounts ? 'custom' : 'equal';
-            
-            document.querySelector(`[data-mode="${mode}"]`).click();
-            
-            // Update split checkboxes
-            setTimeout(() => {
-                transaction.split_between.forEach(split => {
-                    const checkbox = document.getElementById(`split-${split.person}`);
-                    if (checkbox) {
-                        checkbox.checked = true;
-                        checkbox.closest('.split-item').classList.add('checked');
-                        
-                        if (split.amount !== null) {
-                            const amountInput = document.getElementById(`amount-${split.person}`);
-                            if (amountInput) {
-                                amountInput.value = split.amount;
-                            }
-                        }
-                    }
-                });
-            }, 100);
-        }
-        
-        // Store original transaction ID for update
-        document.getElementById('expenseForm').dataset.editingId = transactionId;
-        
-        // Change button text
-        const submitBtn = document.querySelector('#expenseForm button[type="submit"]');
-        submitBtn.textContent = '💾 Uložit změny';
-        
-        showToast('📝 Editace výdaje - uprav a ulož změny', 'warning');
-        
-    } else {
-        // Show income form
-        document.querySelector('[data-type="income"]').click();
-        
-        // Fill form
-        document.getElementById('incomeDescription').value = transaction.description;
-        document.getElementById('incomeAmount').value = transaction.amount;
-        document.getElementById('incomeCurrency').value = transaction.currency;
-        
-        const date = new Date(transaction.date);
-        document.getElementById('incomeDate').value = date.toISOString().split('T')[0];
-        document.getElementById('incomeTime').value = date.toTimeString().slice(0, 5);
-        
-        document.getElementById('incomeRecipient').value = transaction.recipient || transaction.paid_by;
-        document.getElementById('incomeNote').value = transaction.note || '';
-        
-        // Store original transaction ID for update
-        document.getElementById('incomeForm').dataset.editingId = transactionId;
-        
-        // Change button text
-        const submitBtn = document.querySelector('#incomeForm button[type="submit"]');
-        submitBtn.textContent = '💾 Uložit změny';
-        
-        showToast('📝 Editace příjmu - uprav a ulož změny', 'warning');
-    }
-}
-
-// Initialize when auth is ready
-console.log('✅ FAMILY App script loaded');
-
-/* =====================================
-   SIDEBAR & SWIPE FUNCTIONALITY
-   PŘIDEJ NA KONEC app.js
-   ===================================== */
-
-// === SIDEBAR FUNCTIONS ===
-
-function initSidebar() {
-    const openBtn = document.getElementById('openSidebar');
-    const closeBtn = document.getElementById('closeSidebar');
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebarOverlay');
-    const logoutBtn = document.getElementById('sidebarLogout');
-    
-    if (!openBtn || !sidebar) return;
-    
-    openBtn.addEventListener('click', () => {
-        sidebar.classList.add('open');
-        overlay.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-    });
-    
-    const closeSidebar = () => {
-        sidebar.classList.remove('open');
-        overlay.classList.add('hidden');
-        document.body.style.overflow = '';
-    };
-    
-    closeBtn?.addEventListener('click', closeSidebar);
-    overlay?.addEventListener('click', closeSidebar);
-    
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            closeSidebar();
-            handleLogout();
-        });
-    }
-    
-    // Sidebar items
-    document.querySelectorAll('.sidebar-item[data-action]').forEach(item => {
-        item.addEventListener('click', (e) => {
-            const action = e.currentTarget.dataset.action;
-            handleSidebarAction(action);
-            closeSidebar();
-        });
-    });
-}
-
-function handleSidebarAction(action) {
-    switch(action) {
-        case 'myGroups':
-            switchTab('settings');
-            break;
-        case 'createGroup':
-            document.getElementById('addGroupBtn').click();
-            break;
-        case 'about':
-            showToast('💎 Expense Tracker v4.0 - FAMILY Edition');
-            break;
-        default:
-            showToast(`Funkce "${action}" připravujeme`);
-    }
-}
-
-function updateSidebarUser() {
-    const user = getCurrentUser();
-    if (!user) return;
-    
-    // Update sidebar avatar
-    const sidebarAvatar = document.querySelector('.sidebar-avatar');
-    if (sidebarAvatar && user.picture) {
-        sidebarAvatar.style.backgroundImage = `url(${user.picture})`;
-        sidebarAvatar.style.backgroundSize = 'cover';
-    }
-    
-    // Update sidebar user info
-    document.querySelector('.sidebar-user-name')?.textContent = user.name || 'User';
-    document.querySelector('.sidebar-user-email')?.textContent = user.email || '';
-    
-    // Update header avatar
-    const headerAvatar = document.getElementById('headerAvatar');
-    if (headerAvatar && user.picture) {
-        headerAvatar.style.backgroundImage = `url(${user.picture})`;
-        headerAvatar.style.backgroundSize = 'cover';
-    }
-    
-    // Update org members in sidebar
-    const count = state.organizationMembers?.length || 0;
-    const sidebarOrgMembers = document.getElementById('sidebarOrgMembers');
-    if (sidebarOrgMembers) {
-        sidebarOrgMembers.textContent = `${count} ${count === 1 ? 'člen' : count < 5 ? 'členové' : 'členů'}`;
-    }
-}
-
-// === SWIPE GROUPS FUNCTIONS ===
-
-function updateGroupsSwiper() {
-    const swiper = document.getElementById('groupsSwiper');
-    if (!swiper) return;
-    
-    swiper.innerHTML = '';
-    
-    state.groups.forEach(group => {
-        const card = document.createElement('div');
-        card.className = 'group-card';
-        if (group.group_id === state.currentGroupId) {
-            card.classList.add('active');
-        }
-        
-        const memberCount = group.members?.length || 0;
-        
-        card.innerHTML = `
-            <div class="group-card-name">${group.name}</div>
-            <div class="group-card-meta">${memberCount} členů</div>
-        `;
-        
-        card.addEventListener('click', () => {
-            state.currentGroupId = group.group_id;
-            updateGroupsSwiper();
-            loadCurrentGroupData();
-            showToast(`📍 ${group.name}`);
-        });
-        
-        swiper.appendChild(card);
-        
-        // Scroll active card into view
-        if (card.classList.contains('active')) {
-            setTimeout(() => {
-                card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-            }, 100);
-        }
-    });
-    
-    // Add "Create group" card
-    const createCard = document.createElement('div');
-    createCard.className = 'group-card';
-    createCard.innerHTML = `
-        <div class="group-card-name">➕ Nová skupina</div>
-        <div class="group-card-meta">Vytvořit</div>
-    `;
-    createCard.addEventListener('click', () => {
-        document.getElementById('addGroupBtn')?.click();
-    });
-    swiper.appendChild(createCard);
-}
-
-// === FLOATING ACTION BUTTON ===
-
-function initFAB() {
-    // Create FAB if doesn't exist
-    if (!document.querySelector('.fab')) {
-        const fab = document.createElement('button');
-        fab.className = 'fab';
-        fab.innerHTML = '➕';
-        fab.title = 'Přidat výdaj';
-        fab.addEventListener('click', () => {
-            switchTab('add');
-        });
-        document.body.appendChild(fab);
-    }
-}
-
-// === TABS NAVIGATION ===
-
-function initTabsNav() {
-    // Create tabs nav if doesn't exist
-    if (document.querySelector('.tabs-nav')) return;
-    
-    const tabsNav = document.createElement('div');
-    tabsNav.className = 'tabs-nav';
-    tabsNav.innerHTML = `
-        <button class="tab-nav-btn" data-tab="expenses">📋 Výdaje</button>
-        <button class="tab-nav-btn" data-tab="balance">💰 Bilance</button>
-        <button class="tab-nav-btn" data-tab="stats">📊 Statistiky</button>
-        <button class="tab-nav-btn" data-tab="invitations">📬 Pozvánky</button>
-        <button class="tab-nav-btn" data-tab="settings">⚙️ Nastavení</button>
-    `;
-    
-    document.querySelector('.main-content')?.before(tabsNav);
-    
-    // Add event listeners
-    tabsNav.querySelectorAll('.tab-nav-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tab = btn.dataset.tab;
-            switchTab(tab);
-            
-            // Update active state
-            tabsNav.querySelectorAll('.tab-nav-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-        });
-    });
-}
-
-
-/* ===== CRITICAL FIXES ===== */
-
-// Override updateSplitBetween with fixed custom amount layout
-const originalUpdateSplitBetween = window.updateSplitBetween;
-window.updateSplitBetween = function(mode = 'equal', autoSelectCurrentUser = false) {
-    const container = document.getElementById('expenseSplitBetween');
-    const group = getCurrentGroup();
-    const user = getCurrentUser();
-    if (!group || !group.members) return;
-    
-    container.innerHTML = '';
-    
-    group.members.forEach(member => {
-        const div = document.createElement('div');
-        
-        const isCurrentUser = user && member.email === user.email;
-        const shouldBeChecked = autoSelectCurrentUser ? isCurrentUser : true;
-        
-        div.className = shouldBeChecked ? 'split-item checked' : 'split-item';
-        
-        const initial = member.name.charAt(0).toUpperCase();
-        const avatarStyle = member.picture 
-            ? `background-image: url('${member.picture}'); background-size: cover;`
-            : '';
-        
-        if (mode === 'equal') {
-            div.innerHTML = `
-                <input type="checkbox" id="split-${member.email}" value="${member.email}" ${shouldBeChecked ? 'checked' : ''}>
-                <label for="split-${member.email}" class="split-label">
-                    <div class="split-avatar" style="${avatarStyle}">
-                        ${member.picture ? '' : initial}
-                    </div>
-                    <div class="split-info">
-                        <span class="split-name">${member.name}</span>
-                        ${isCurrentUser ? '<span class="split-badge">Ty</span>' : ''}
-                    </div>
-                </label>
-            `;
-        } else {
-            div.innerHTML = `
-                <input type="checkbox" id="split-${member.email}" value="${member.email}" ${shouldBeChecked ? 'checked' : ''}>
-                <label for="split-${member.email}" class="split-label">
-                    <div class="split-avatar" style="${avatarStyle}">
-                        ${member.picture ? '' : initial}
-                    </div>
-                    <div class="split-info">
-                        <span class="split-name">${member.name}</span>
-                        ${isCurrentUser ? '<span class="split-badge">Ty</span>' : ''}
-                    </div>
-                </label>
-                <div class="split-amount-wrapper">
-                    <input type="number" id="amount-${member.email}" placeholder="0" pattern="[0-9]*" inputmode="numeric" min="0" class="split-amount-input">
-                    <span class="split-currency">Kč</span>
-                </div>
-            `;
-        }
-        
-        container.appendChild(div);
-        
-        const checkbox = div.querySelector('input[type="checkbox"]');
-        checkbox.addEventListener('change', () => {
-            div.classList.toggle('checked', checkbox.checked);
-        });
-    });
-};
-
-// Override loadOrganizationData with proper count
-const originalLoadOrganizationData = window.loadOrganizationData;
-window.loadOrganizationData = async function() {
-    try {
-        const data = await apiCall('get_organization', {});
-        state.organizationMembers = data.members || [];
-        
-        const count = state.organizationMembers.length;
-        const label = count === 1 ? 'člen' : (count >= 2 && count <= 4) ? 'členové' : 'členů';
-        document.getElementById('orgMembersCount').textContent = `${count} ${label}`;
-        
-        console.log('✅ Organization loaded:', data.name, '-', count, label);
-    } catch (error) {
-        console.error('Load organization error:', error);
-        document.getElementById('orgMembersCount')?.textContent = '0 členů';
-    }
-};
-
-console.log('✅ Critical fixes loaded');
+console.log('✅ FAMILY App script loaded - COMPLETE!');
