@@ -778,7 +778,8 @@ async function fetchExchangeRates() {
 
 // === UI UPDATES ===
 
-function switchTab(tabName) {
+// Export for sidebar access
+window.switchTab = function switchTab(tabName) {
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
     
@@ -1664,45 +1665,6 @@ function initTabsNav() {
     });
 }
 
-// === OVERRIDE switchTab TO WORK WITH NEW NAVIGATION ===
-
-const originalSwitchTab = window.switchTab;
-window.switchTab = function(tabName) {
-    // Call original function
-    if (originalSwitchTab) {
-        originalSwitchTab(tabName);
-    }
-    
-    // Update tabs nav active state
-    document.querySelectorAll('.tab-nav-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === tabName);
-    });
-};
-
-// === INITIALIZE ON LOAD ===
-
-document.addEventListener('DOMContentLoaded', () => {
-    initSidebar();
-    initFAB();
-    initTabsNav();
-});
-
-// Update when user logs in
-const originalInitializeApp = window.initializeApp;
-window.initializeApp = async function() {
-    await originalInitializeApp();
-    updateSidebarUser();
-    updateGroupsSwiper();
-};
-
-// Update when groups change
-const originalLoadGroupsFromBackend = window.loadGroupsFromBackend;
-window.loadGroupsFromBackend = async function() {
-    await originalLoadGroupsFromBackend();
-    updateGroupsSwiper();
-};
-
-console.log('✅ Sidebar & Swipe module loaded');
 
 /* ===== CRITICAL FIXES ===== */
 

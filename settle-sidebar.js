@@ -63,7 +63,7 @@
             });
         }
         
-        // Navigation items - use EXISTING switchTab function!
+        // Navigation items - call switchTab directly!
         const navItems = document.querySelectorAll('.settle-nav-item[data-tab]');
         navItems.forEach(function(item) {
             item.addEventListener('click', function() {
@@ -79,15 +79,13 @@
                 // Close sidebar
                 closeSidebar();
                 
-                // Use ORIGINAL switchTab - don't modify it!
+                // Call switchTab directly!
                 setTimeout(function() {
-                    // Find the bottom nav button and click it
-                    const navBtn = document.querySelector('.nav-btn[data-tab="' + tab + '"]');
-                    if (navBtn) {
-                        navBtn.click();
-                        console.log('✅ Tab switched via nav button');
+                    if (typeof switchTab === 'function') {
+                        switchTab(tab);
+                        console.log('✅ Tab switched:', tab);
                     } else {
-                        console.warn('⚠️ Nav button not found for:', tab);
+                        console.error('❌ switchTab function not found!');
                     }
                 }, 300);
             });
