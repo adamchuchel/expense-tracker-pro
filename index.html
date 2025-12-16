@@ -12,6 +12,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="settle-sidebar.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -41,89 +42,60 @@
     <!-- Main App (shown when authenticated) -->
     <div id="mainApp" class="app hidden">
         
-        <!-- Sidebar Menu -->
-        <aside id="sidebar" class="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-user">
-                    <div id="sidebarAvatar" class="sidebar-avatar"></div>
-                    <div class="sidebar-user-details">
-                        <div id="sidebarUserName" class="sidebar-user-name">User</div>
-                        <div id="sidebarUserEmail" class="sidebar-user-email">email@example.com</div>
+        <!-- Sidebar -->
+        <aside id="sidebar" class="settle-sidebar">
+            <div class="settle-sidebar-header">
+                <div class="settle-user">
+                    <div id="sidebarAvatar" class="settle-avatar"></div>
+                    <div class="settle-user-info">
+                        <div id="sidebarName" class="settle-user-name">User</div>
+                        <div id="sidebarEmail" class="settle-user-email">email@example.com</div>
                     </div>
                 </div>
-                <button id="closeSidebar" class="close-sidebar">✕</button>
+                <button id="closeSidebar" class="settle-close">✕</button>
             </div>
             
-            <nav class="sidebar-content">
-                <!-- Main Navigation -->
-                <button class="sidebar-item sidebar-nav-item active" data-tab="add">
-                    <span class="sidebar-icon">➕</span>
-                    <span>Přidat</span>
+            <nav class="settle-nav">
+                <button class="settle-nav-item active" data-tab="add">
+                    <span>➕</span> Přidat
+                </button>
+                <button class="settle-nav-item" data-tab="expenses">
+                    <span>📋</span> Výdaje
+                </button>
+                <button class="settle-nav-item" data-tab="balance">
+                    <span>💰</span> Bilance
+                </button>
+                <button class="settle-nav-item" data-tab="stats">
+                    <span>📊</span> Statistiky
+                </button>
+                <button class="settle-nav-item" data-tab="invitations">
+                    <span>📬</span> Pozvánky
+                </button>
+                <button class="settle-nav-item" data-tab="settings">
+                    <span>⚙️</span> Nastavení
                 </button>
                 
-                <button class="sidebar-item sidebar-nav-item" data-tab="expenses">
-                    <span class="sidebar-icon">📋</span>
-                    <span>Výdaje</span>
-                </button>
+                <div class="settle-divider"></div>
                 
-                <button class="sidebar-item sidebar-nav-item" data-tab="balance">
-                    <span class="sidebar-icon">💰</span>
-                    <span>Bilance</span>
-                </button>
+                <div class="settle-org">
+                    <div>🏢 <strong>FAMILY</strong></div>
+                    <div id="sidebarOrgCount" class="settle-org-count">0 členů</div>
+                </div>
                 
-                <button class="sidebar-item sidebar-nav-item" data-tab="stats">
-                    <span class="sidebar-icon">📊</span>
-                    <span>Statistiky</span>
-                </button>
-                
-                <button class="sidebar-item sidebar-nav-item" data-tab="invitations">
-                    <span class="sidebar-icon">📬</span>
-                    <span>Pozvánky</span>
-                </button>
-                
-                <button class="sidebar-item sidebar-nav-item" data-tab="settings">
-                    <span class="sidebar-icon">⚙️</span>
-                    <span>Nastavení</span>
-                </button>
-                
-                <div class="sidebar-divider"></div>
-                
-                <!-- Additional Actions -->
-                <button class="sidebar-item" data-action="createGroup">
-                    <span class="sidebar-icon">➕</span>
-                    <span>Vytvořit skupinu</span>
-                </button>
-                
-                <button class="sidebar-item" data-action="about">
-                    <span class="sidebar-icon">ℹ️</span>
-                    <span>O aplikaci</span>
+                <button id="sidebarLogout" class="settle-logout">
+                    <span>🚪</span> Odhlásit se
                 </button>
             </nav>
-            
-            <div class="sidebar-footer">
-                <div class="sidebar-org">
-                    <div class="sidebar-org-icon">🏢</div>
-                    <div class="sidebar-org-info">
-                        <div class="sidebar-org-name">FAMILY</div>
-                        <div id="sidebarOrgMembers" class="sidebar-org-members">0 členů</div>
-                    </div>
-                </div>
-                <button class="sidebar-item" id="sidebarLogout">
-                    <span class="sidebar-icon">🚪</span>
-                    <span>Odhlásit se</span>
-                </button>
-            </div>
         </aside>
-
-        <!-- Sidebar Overlay -->
-        <div id="sidebarOverlay" class="sidebar-overlay hidden"></div>
+        
+        <div id="sidebarOverlay" class="settle-overlay"></div>
         
         <!-- Fixed Header -->
         <header class="header">
             <div class="header-content">
                 <div class="header-left">
-                    <button id="openSidebar" class="profile-btn">
-                        <div id="headerAvatar" class="header-avatar"></div>
+                    <button id="openSidebar" class="settle-avatar-btn">
+                        <div id="headerAvatar" class="settle-avatar-small"></div>
                     </button>
                     <h1>💎 Výdaje</h1>
                     <div class="group-selector" id="groupSelector">
@@ -158,7 +130,7 @@
         </div>
 
         <!-- Fixed Bottom Navigation -->
-        <nav class="bottom-nav" style="display: none !important;">
+        <nav class="bottom-nav" style="display:none;">
             <button class="nav-btn active" data-tab="add">
                 <span class="nav-icon">➕</span>
                 <span class="nav-label">Přidat</span>
@@ -527,15 +499,11 @@
         </div>
     </div>
 
-    
-    <!-- Floating Action Button -->
-    <button id="fabBtn" class="fab" style="display:none;" title="Přidat výdaj">➕</button>
-    
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="auth.js"></script>
     <script src="db.js"></script>
     <script src="offline.js"></script>
     <script src="app.js"></script>
-    <script src="sidebar-module.js"></script>
+    <script src="settle-sidebar.js"></script>
 </body>
 </html>

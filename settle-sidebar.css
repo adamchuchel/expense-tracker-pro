@@ -1,0 +1,208 @@
+/* ========================================
+   SETTLE UP SIDEBAR - SIMPLE VERSION
+   ======================================== */
+
+/* Sidebar */
+.settle-sidebar {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    width: 280px;
+    height: 100vh;
+    background: #1a1d29;
+    z-index: 10000;
+    transition: left 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 2px 0 20px rgba(0,0,0,0.5);
+}
+
+.settle-sidebar.open {
+    left: 0;
+}
+
+/* Overlay */
+.settle-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 9999;
+    display: none;
+}
+
+.settle-overlay.show {
+    display: block;
+}
+
+/* Sidebar Header */
+.settle-sidebar-header {
+    padding: 1.5rem 1rem;
+    border-bottom: 1px solid #2a2f3f;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.settle-user {
+    display: flex;
+    gap: 0.875rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.settle-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F1962C, #E67E00);
+    border: 2px solid #363F52;
+    flex-shrink: 0;
+    background-size: cover;
+    background-position: center;
+}
+
+.settle-user-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.settle-user-name {
+    font-weight: 700;
+    font-size: 1rem;
+    color: white;
+    margin-bottom: 0.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.settle-user-email {
+    font-size: 0.8rem;
+    color: #8B95A8;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.settle-close {
+    background: #252D3D;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* Navigation */
+.settle-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+}
+
+.settle-nav-item {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    text-align: left;
+    border-left: 3px solid transparent;
+}
+
+.settle-nav-item span {
+    font-size: 1.2rem;
+}
+
+.settle-nav-item:hover {
+    background: #252D3D;
+}
+
+.settle-nav-item.active {
+    background: rgba(241, 150, 44, 0.15);
+    border-left-color: #F1962C;
+    color: #FFA94D;
+}
+
+.settle-divider {
+    height: 1px;
+    background: #2a2f3f;
+    margin: 0.75rem 0;
+}
+
+.settle-org {
+    padding: 0.875rem 1rem;
+    background: rgba(241, 150, 44, 0.1);
+    border: 1px solid rgba(241, 150, 44, 0.3);
+    border-radius: 8px;
+    margin: 0.5rem 1rem;
+    color: white;
+    font-size: 0.9rem;
+}
+
+.settle-org-count {
+    font-size: 0.8rem;
+    color: #8B95A8;
+    margin-top: 0.25rem;
+}
+
+.settle-logout {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background: transparent;
+    border: none;
+    color: #ff6b6b;
+    font-size: 0.95rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    text-align: left;
+}
+
+.settle-logout span {
+    font-size: 1.2rem;
+}
+
+/* Avatar Button in Header */
+.settle-avatar-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin-right: 0.75rem;
+    cursor: pointer;
+}
+
+.settle-avatar-small {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F1962C, #E67E00);
+    border: 2px solid #363F52;
+    background-size: cover;
+    background-position: center;
+}
+
+/* Hide bottom nav */
+.bottom-nav {
+    display: none !important;
+}
+
+/* Content padding adjustment */
+.content-wrapper {
+    padding-bottom: 1rem !important;
+}

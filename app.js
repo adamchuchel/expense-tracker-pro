@@ -24,8 +24,7 @@ let charts = { category: null, timeline: null };
 
 // === INITIALIZATION ===
 
-// Export initializeApp for auth.js access
-window.initializeApp = async function initializeApp() {
+async function initializeApp() {
     console.log('🚀 Initializing FAMILY app...');
     
     // Load script URL
@@ -62,14 +61,6 @@ window.initializeApp = async function initializeApp() {
     updateCategorySelects();
     setDateTimeInputs(new Date());
     await updateUnsyncedCount();
-    
-    // Update sidebar with user info
-    if (window.updateSettleUpAvatars) {
-        window.updateSettleUpAvatars();
-    }
-    if (window.updateSettleUpOrgMembers) {
-        window.updateSettleUpOrgMembers();
-    }
     
     console.log('✅ FAMILY app initialized');
 }
@@ -787,8 +778,7 @@ async function fetchExchangeRates() {
 
 // === UI UPDATES ===
 
-// Export switchTab to window for sidebar access
-window.switchTab = function switchTab(tabName) {
+function switchTab(tabName) {
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
     
@@ -1674,6 +1664,21 @@ function initTabsNav() {
     });
 }
 
+// === OVERRIDE switchTab TO WORK WITH NEW NAVIGATION ===
+
+const originalSwitchTab = window.switchTab;
+window.switchTab = function(tabName) {
+    // Call original function
+    if (originalSwitchTab) {
+        originalSwitchTab(tabName);
+    }
+    
+    // Update tabs nav active state
+    document.querySelectorAll('.tab-nav-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+};
+
 // === INITIALIZE ON LOAD ===
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1681,6 +1686,21 @@ document.addEventListener('DOMContentLoaded', () => {
     initFAB();
     initTabsNav();
 });
+
+// Update when user logs in
+const originalInitializeApp = window.initializeApp;
+window.initializeApp = async function() {
+    await originalInitializeApp();
+    updateSidebarUser();
+    updateGroupsSwiper();
+};
+
+// Update when groups change
+const originalLoadGroupsFromBackend = window.loadGroupsFromBackend;
+window.loadGroupsFromBackend = async function() {
+    await originalLoadGroupsFromBackend();
+    updateGroupsSwiper();
+};
 
 console.log('✅ Sidebar & Swipe module loaded');
 
