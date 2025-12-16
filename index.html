@@ -55,17 +55,44 @@
             </div>
             
             <nav class="sidebar-content">
-                <button class="sidebar-item" data-action="myGroups">
-                    <span class="sidebar-icon">👥</span>
-                    <span>Moje skupiny</span>
+                <!-- Main Navigation -->
+                <button class="sidebar-item sidebar-nav-item active" data-tab="add">
+                    <span class="sidebar-icon">➕</span>
+                    <span>Přidat</span>
                 </button>
                 
+                <button class="sidebar-item sidebar-nav-item" data-tab="expenses">
+                    <span class="sidebar-icon">📋</span>
+                    <span>Výdaje</span>
+                </button>
+                
+                <button class="sidebar-item sidebar-nav-item" data-tab="balance">
+                    <span class="sidebar-icon">💰</span>
+                    <span>Bilance</span>
+                </button>
+                
+                <button class="sidebar-item sidebar-nav-item" data-tab="stats">
+                    <span class="sidebar-icon">📊</span>
+                    <span>Statistiky</span>
+                </button>
+                
+                <button class="sidebar-item sidebar-nav-item" data-tab="invitations">
+                    <span class="sidebar-icon">📬</span>
+                    <span>Pozvánky</span>
+                </button>
+                
+                <button class="sidebar-item sidebar-nav-item" data-tab="settings">
+                    <span class="sidebar-icon">⚙️</span>
+                    <span>Nastavení</span>
+                </button>
+                
+                <div class="sidebar-divider"></div>
+                
+                <!-- Additional Actions -->
                 <button class="sidebar-item" data-action="createGroup">
                     <span class="sidebar-icon">➕</span>
                     <span>Vytvořit skupinu</span>
                 </button>
-                
-                <div class="sidebar-divider"></div>
                 
                 <button class="sidebar-item" data-action="about">
                     <span class="sidebar-icon">ℹ️</span>
@@ -131,7 +158,7 @@
         </div>
 
         <!-- Fixed Bottom Navigation -->
-        <nav class="bottom-nav">
+        <nav class="bottom-nav" style="display: none !important;">
             <button class="nav-btn active" data-tab="add">
                 <span class="nav-icon">➕</span>
                 <span class="nav-label">Přidat</span>

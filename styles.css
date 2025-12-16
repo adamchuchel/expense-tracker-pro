@@ -2428,3 +2428,29 @@ body {
     align-items: center !important;
     gap: 0.5rem !important;
 }
+
+/* ===== SIDEBAR NAVIGATION ACTIVE STATE ===== */
+.sidebar-nav-item.active {
+    background: linear-gradient(135deg, rgba(241, 150, 44, 0.2), rgba(230, 126, 0, 0.15)) !important;
+    border-left: 3px solid var(--settle-orange, #F1962C) !important;
+    color: var(--settle-orange-light, #FFA94D) !important;
+}
+
+.sidebar-nav-item.active .sidebar-icon {
+    filter: brightness(1.3);
+}
+
+/* Hide bottom nav */
+.bottom-nav {
+    display: none !important;
+}
+
+/* Adjust content wrapper for no bottom nav */
+.content-wrapper {
+    padding-bottom: 1rem !important;
+}
+
+/* Main content without bottom nav */
+.main-content {
+    padding-bottom: 1rem !important;
+}

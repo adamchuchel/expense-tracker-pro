@@ -93,11 +93,6 @@ function initSidebar() {
             
             setTimeout(() => {
                 switch(action) {
-                    case 'myGroups':
-                        if (window.switchTab) {
-                            window.switchTab('settings');
-                        }
-                        break;
                     case 'createGroup':
                         const addGroupBtn = document.getElementById('addGroupBtn');
                         if (addGroupBtn) {
@@ -116,7 +111,32 @@ function initSidebar() {
         });
     });
     
-    console.log('✅ Sidebar initialized with', menuItems.length, 'menu items');
+    // Sidebar navigation items (tabs)
+    const navItems = document.querySelectorAll('.sidebar-nav-item[data-tab]');
+    navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const tab = item.dataset.tab;
+            console.log('🔄 Switching to tab:', tab);
+            
+            // Remove active from all
+            navItems.forEach(i => i.classList.remove('active'));
+            // Add active to clicked
+            item.classList.add('active');
+            
+            closeSidebar();
+            
+            setTimeout(() => {
+                if (window.switchTab) {
+                    window.switchTab(tab);
+                } else {
+                    console.warn('⚠️ switchTab function not found');
+                }
+            }, 300);
+        });
+    });
+    
+    console.log('✅ Sidebar initialized with', menuItems.length, 'menu items and', navItems.length, 'nav items');
 }
 
 /* ===== FAB BUTTON ===== */
