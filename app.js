@@ -39,7 +39,6 @@ async function initializeApp() {
     // Load data from backend OR local
     if (state.scriptUrl) {
         if (isOnlineGlobal) {
-            // Online: try backend, fallback to local
             try {
                 await loadOrganizationData();
                 await loadGroupsFromBackend();
@@ -49,7 +48,6 @@ async function initializeApp() {
                 await loadFromLocal();
             }
         } else {
-            // Offline: load from local
             console.log('⚠️ Offline mode - loading from local');
             await loadFromLocal();
             updateAllViews();
@@ -62,13 +60,22 @@ async function initializeApp() {
     setDateTimeInputs(new Date());
     await updateUnsyncedCount();
     
+    // Update sidebar user info
+    if (typeof updateSidebarUser === 'function') {
+        setTimeout(updateSidebarUser, 500);
+        setTimeout(updateSidebarUser, 1500);
+    }
+    
     console.log('✅ FAMILY app initialized');
 }
 
 function setupEventListeners() {
-    // Navigation
+    // Navigation - bottom nav
     document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+            switchTab(tab);
+        });
     });
 
     // Transaction type toggle
@@ -108,8 +115,8 @@ function setupEventListeners() {
     document.getElementById('syncBtn').addEventListener('click', syncWithBackend);
 
     // Logout
-    document.getElementById('logoutBtn').addEventListener('click', logout);
-    document.getElementById('logoutBtnSettings').addEventListener('click', logout);
+    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+    document.getElementById('logoutBtnSettings').addEventListener('click', handleLogout);
 
     // Filters
     document.getElementById('filterType').addEventListener('change', updateExpensesList);
@@ -147,6 +154,60 @@ function setDateTimeInputs(date) {
     document.getElementById('incomeTime').value = timeStr;
 }
 
+// === LOGOUT HANDLER ===
+
+function handleLogout() {
+    if (typeof logout === 'function') {
+        logout();
+    } else {
+        console.error('❌ logout function not found');
+    }
+}
+
+// === TAB SWITCHING - EXPORT GLOBALLY ===
+
+function switchTab(tabName) {
+    console.log('🔄 Switching to tab:', tabName);
+    
+    // Update bottom nav buttons
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-tab') === tabName) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Update sidebar nav items
+    document.querySelectorAll('.settle-nav-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.getAttribute('data-tab') === tabName) {
+            item.classList.add('active');
+        }
+    });
+    
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    const targetTab = document.getElementById(`${tabName}Tab`);
+    if (targetTab) {
+        targetTab.classList.add('active');
+    }
+    
+    // Trigger specific view updates
+    if (tabName === 'expenses') updateExpensesList();
+    if (tabName === 'balance') updateBalance();
+    if (tabName === 'stats') updateStatistics();
+    if (tabName === 'invitations') updateInvitationsList();
+    if (tabName === 'settings') {
+        updateCategoriesList();
+        updateGroupManagement();
+    }
+    
+    console.log('✅ Tab switched to:', tabName);
+}
+
+// Export globally for sidebar access
+window.switchTab = switchTab;
+
 // === BACKEND COMMUNICATION ===
 
 function getScriptUrl() {
@@ -158,11 +219,9 @@ async function apiCall(action, data = {}) {
         throw new Error('Script URL not set');
     }
     
-    // Apps Script requires special handling to avoid CORS preflight
     const url = new URL(state.scriptUrl);
     url.searchParams.set('action', action);
     
-    // Add data as URL parameters for simple requests
     const params = new URLSearchParams();
     params.set('data', JSON.stringify(data));
     
