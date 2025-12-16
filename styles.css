@@ -2392,3 +2392,39 @@ body {
     transform: scale(0.95);
     box-shadow: 0 4px 12px rgba(241, 150, 44, 0.4);
 }
+/* =====================================
+   SETTLE UP FIXES - Higher specificity
+   ===================================== */
+
+/* Profile Button - must be visible and clickable */
+.profile-btn {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin-right: 0.75rem !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+}
+
+.header-avatar {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 50% !important;
+    background: linear-gradient(135deg, var(--settle-orange, #F1962C), var(--settle-orange-dark, #E67E00)) !important;
+    border: 2px solid var(--border-light, #363F52) !important;
+    transition: all 0.2s !important;
+    background-size: cover !important;
+    background-position: center !important;
+}
+
+.profile-btn:active .header-avatar {
+    transform: scale(0.95) !important;
+    border-color: var(--settle-orange, #F1962C) !important;
+}
+
+/* Make sure header-left has flex */
+.header-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+}
